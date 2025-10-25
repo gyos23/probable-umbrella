@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
@@ -19,6 +20,7 @@ import { useTheme } from '../../src/theme/useTheme';
 import { Task, TaskStatus, TaskPriority } from '../../src/types';
 
 export default function TasksScreen() {
+  const router = useRouter();
   const { colors, typography, spacing } = useTheme();
   const tasks = useTaskStore((state) => state.tasks);
   const addTask = useTaskStore((state) => state.addTask);
@@ -113,7 +115,7 @@ export default function TasksScreen() {
         renderItem={({ item }) => (
           <TaskRow
             task={item}
-            onPress={() => {}}
+            onPress={() => router.push(`/task/${item.id}`)}
             onToggleComplete={() => toggleTaskComplete(item.id)}
           />
         )}

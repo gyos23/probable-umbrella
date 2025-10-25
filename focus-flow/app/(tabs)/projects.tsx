@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { Project } from '../../src/types';
@@ -29,6 +30,7 @@ const PROJECT_COLORS = [
 ];
 
 export default function ProjectsScreen() {
+  const router = useRouter();
   const { colors, typography, spacing } = useTheme();
   const projects = useTaskStore((state) => state.projects);
   const tasks = useTaskStore((state) => state.tasks);
@@ -79,6 +81,7 @@ export default function ProjectsScreen() {
             borderColor: colors.separator,
           },
         ]}
+        onPress={() => router.push(`/project/${item.id}`)}
         activeOpacity={0.7}
       >
         <View style={[styles.colorBar, { backgroundColor: item.color }]} />
