@@ -132,28 +132,28 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
-    marginVertical: 4,
-    marginHorizontal: 16,
-    borderWidth: 1,
+    borderRadius: 10,
+    marginVertical: 3,
+    marginHorizontal: 12,
+    borderWidth: 0.5,
   },
   content: {
     flexDirection: 'row',
-    padding: 16,
+    padding: 12,
     alignItems: 'flex-start',
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    marginRight: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkmark: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
   },
   taskInfo: {
@@ -162,36 +162,38 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
     flex: 1,
     marginRight: 8,
+    fontSize: 15,
   },
   priorityIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 5,
   },
   metadata: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 4,
+    gap: 5,
+    marginBottom: 3,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
   },
   dependencies: {
-    marginTop: 4,
+    marginTop: 3,
   },
   dependencyText: {
     fontStyle: 'italic',
+    fontSize: 11,
   },
 });
