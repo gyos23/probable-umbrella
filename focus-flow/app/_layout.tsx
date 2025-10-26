@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTaskStore } from '../src/store/taskStore';
 import { Colors } from '../src/theme/colors';
 
@@ -27,37 +28,39 @@ export default function RootLayout() {
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.primary,
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="task/[id]"
-          options={{
-            headerShown: false,
-            presentation: 'card'
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.primary,
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
+            contentStyle: {
+              backgroundColor: colors.background,
+            },
           }}
-        />
-        <Stack.Screen
-          name="project/[id]"
-          options={{
-            headerShown: false,
-            presentation: 'card'
-          }}
-        />
-      </Stack>
-    </GestureHandlerRootView>
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="task/[id]"
+            options={{
+              headerShown: false,
+              presentation: 'card'
+            }}
+          />
+          <Stack.Screen
+            name="project/[id]"
+            options={{
+              headerShown: false,
+              presentation: 'card'
+            }}
+          />
+        </Stack>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
