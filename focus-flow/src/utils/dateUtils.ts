@@ -5,6 +5,7 @@ export const formatDate = (date: Date, formatStr: string): string => {
   const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   if (formatStr === 'd') return String(date.getDate());
+  if (formatStr === 'MMM d') return `${months[date.getMonth()]} ${date.getDate()}`;
   if (formatStr === 'MMM d, yyyy') return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   if (formatStr === 'MMMM yyyy') return `${fullMonths[date.getMonth()]} ${date.getFullYear()}`;
   return date.toLocaleDateString();
