@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
+import { EmptyState } from '../../src/components/EmptyState';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, TaskStatus, TaskPriority } from '../../src/types';
 
@@ -202,13 +203,38 @@ export default function TasksScreen() {
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyStateText, { color: colors.tertiaryText, ...typography.body }]}>
-              {filterStatus === 'all'
-                ? 'No tasks yet. Tap + to create your first task!'
-                : `No ${filterStatus} tasks`}
-            </Text>
-          </View>
+          searchQuery ? (
+            <EmptyState
+              emoji="🔍"
+              title="No Results"
+              message={`No tasks found matching "${searchQuery}"`}
+              actionLabel="Clear Search"
+              onAction={() => setSearchQuery('')}
+            />
+          ) : filterStatus === 'all' ? (
+            <EmptyState
+              emoji="✨"
+              title="Ready to Start?"
+              message="No tasks yet. Create your first task to get organized and boost your productivity!"
+              actionLabel="Create Task"
+              onAction={() => setIsAddModalVisible(true)}
+            />
+          ) : (
+            <EmptyState
+              emoji={
+                filterStatus === 'completed' ? '🎉' :
+                filterStatus === 'in-progress' ? '⚡' : '📝'
+              }
+              title={`No ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Tasks`}
+              message={
+                filterStatus === 'completed'
+                  ? 'Complete some tasks to see them here!'
+                  : filterStatus === 'in-progress'
+                  ? 'Start working on a task to see it here!'
+                  : 'Create a task to get started!'
+              }
+            />
+          )
         }
       />
 
