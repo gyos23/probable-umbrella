@@ -8,7 +8,7 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  format,
+  formatDate as format,
   isSameDay,
   addMonths,
   subMonths,
@@ -16,7 +16,7 @@ import {
   endOfWeek,
   isSameMonth,
   isToday,
-} from 'date-fns';
+} from '../../src/utils/dateUtils';
 
 export default function CalendarScreen() {
   const { colors, typography, spacing } = useTheme();

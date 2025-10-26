@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { TaskStatus, TaskPriority } from '../../src/types';
-import { format } from 'date-fns';
+import { formatDate } from '../../src/utils/dateUtils';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -283,7 +283,7 @@ export default function TaskDetailScreen() {
               {task.dueDate ? (
                 <View style={styles.dateValue}>
                   <Text style={[styles.dateText, { color: colors.text, ...typography.body }]}>
-                    {format(task.dueDate, 'MMM d, yyyy')}
+                    {formatDate(task.dueDate, 'MMM d, yyyy')}
                   </Text>
                   <TouchableOpacity onPress={() => updateTask(id!, { dueDate: undefined })}>
                     <Text style={[styles.clearButton, { color: colors.red }]}>Clear</Text>
@@ -303,7 +303,7 @@ export default function TaskDetailScreen() {
               {task.plannedDate ? (
                 <View style={styles.dateValue}>
                   <Text style={[styles.dateText, { color: colors.text, ...typography.body }]}>
-                    {format(task.plannedDate, 'MMM d, yyyy')}
+                    {formatDate(task.plannedDate, 'MMM d, yyyy')}
                   </Text>
                   <TouchableOpacity onPress={() => updateTask(id!, { plannedDate: undefined })}>
                     <Text style={[styles.clearButton, { color: colors.red }]}>Clear</Text>

@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "date-fns": "^2.30.0",
     "expo": "~54.0.20",
     "expo-constants": "^18.0.10",
     "expo-linking": "^8.0.8",
