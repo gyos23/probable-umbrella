@@ -30,6 +30,9 @@ export default function TasksScreen() {
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title'>('date');
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
     notes: '',
@@ -37,10 +40,36 @@ export default function TasksScreen() {
     priority: 'medium' as TaskPriority,
   });
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filterStatus === 'all') return true;
-    return task.status === filterStatus;
-  });
+  const filteredTasks = tasks
+    .filter((task) => {
+      // Status filter
+      if (filterStatus !== 'all' && task.status !== filterStatus) return false;
+
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return (
+          task.title.toLowerCase().includes(query) ||
+          task.notes?.toLowerCase().includes(query)
+        );
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort logic
+      if (sortBy === 'priority') {
+        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      } else if (sortBy === 'title') {
+        return a.title.localeCompare(b.title);
+      } else {
+        // Sort by date (due date or created date)
+        const aDate = a.dueDate || a.createdAt;
+        const bDate = b.dueDate || b.createdAt;
+        return new Date(aDate).getTime() - new Date(bDate).getTime();
+      }
+    });
 
   const handleAddTask = () => {
     if (newTask.title.trim()) {
@@ -74,11 +103,39 @@ export default function TasksScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <View style={styles.header}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterContainer}
-        >
+        {/* Search Bar */}
+        <View style={[styles.searchContainer, { backgroundColor: colors.secondaryBackground }]}>
+          <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+          <TextInput
+            style={[styles.searchInput, { color: colors.text, ...typography.body }]}
+            placeholder="Search tasks..."
+            placeholderTextColor={colors.tertiaryText}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={{ fontSize: 16, color: colors.tertiaryText }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Sort and Filter */}
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={[styles.sortButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+            onPress={() => setShowSortMenu(!showSortMenu)}
+          >
+            <Text style={[styles.sortButtonText, { color: colors.text, ...typography.subheadline }]}>
+              Sort: {sortBy === 'date' ? '📅 Date' : sortBy === 'priority' ? '⚡ Priority' : '🔤 Title'}
+            </Text>
+          </TouchableOpacity>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContainer}
+          >
           {(['all', 'todo', 'in-progress', 'completed'] as const).map((status) => (
             <TouchableOpacity
               key={status}
@@ -106,7 +163,31 @@ export default function TasksScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+          </ScrollView>
+        </View>
+
+        {/* Sort Menu */}
+        {showSortMenu && (
+          <View style={[styles.sortMenu, { backgroundColor: colors.card, borderColor: colors.separator }]}>
+            {(['date', 'priority', 'title'] as const).map((sort) => (
+              <TouchableOpacity
+                key={sort}
+                style={styles.sortOption}
+                onPress={() => {
+                  setSortBy(sort);
+                  setShowSortMenu(false);
+                }}
+              >
+                <Text style={[styles.sortOptionText, { color: colors.text, ...typography.body }]}>
+                  {sort === 'date' && '📅 Due Date'}
+                  {sort === 'priority' && '⚡ Priority'}
+                  {sort === 'title' && '🔤 Alphabetical'}
+                </Text>
+                {sortBy === sort && <Text style={{ color: colors.primary }}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -299,6 +380,60 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     fontWeight: '500',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sortButton: {
+    marginLeft: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sortButtonText: {
+    fontWeight: '500',
+  },
+  sortMenu: {
+    position: 'absolute',
+    top: 120,
+    left: 16,
+    right: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  sortOptionText: {
+    fontSize: 16,
   },
   listContent: {
     paddingVertical: 8,
