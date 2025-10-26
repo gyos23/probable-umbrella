@@ -22,9 +22,12 @@ export default function TaskDetailScreen() {
   const { colors, typography, spacing } = useTheme();
 
   const task = useTaskStore((state) => state.tasks.find((t) => t.id === id));
+  const allTasks = useTaskStore((state) => state.tasks);
   const projects = useTaskStore((state) => state.projects);
   const updateTask = useTaskStore((state) => state.updateTask);
   const deleteTask = useTaskStore((state) => state.deleteTask);
+  const addDependency = useTaskStore((state) => state.addDependency);
+  const removeDependency = useTaskStore((state) => state.removeDependency);
 
   const [title, setTitle] = useState(task?.title || '');
   const [notes, setNotes] = useState(task?.notes || '');
@@ -277,6 +280,59 @@ export default function TaskDetailScreen() {
           />
         </View>
 
+        <View style={styles.optionsSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+            Dependencies
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
+            Select tasks that must be completed before this task can start
+          </Text>
+          <View style={styles.dependenciesContainer}>
+            {allTasks
+              .filter((t) => t.id !== id && t.status !== 'completed')
+              .map((t) => {
+                const isDependent = task.dependsOn.includes(t.id);
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[
+                      styles.dependencyChip,
+                      {
+                        backgroundColor: isDependent ? colors.primary : colors.secondaryBackground,
+                        borderColor: colors.separator,
+                      },
+                    ]}
+                    onPress={() => {
+                      if (isDependent) {
+                        removeDependency(id!, t.id);
+                      } else {
+                        addDependency(id!, t.id);
+                      }
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dependencyChipText,
+                        {
+                          color: isDependent ? '#FFFFFF' : colors.text,
+                          ...typography.caption1,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t.title}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+          </View>
+          {task.dependsOn.length === 0 && (
+            <Text style={[styles.noDependenciesText, { color: colors.tertiaryText, ...typography.caption1 }]}>
+              No dependencies added
+            </Text>
+          )}
+        </View>
+
         <View style={styles.dangerSection}>
           <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
             <Text style={[styles.deleteButtonText, { color: colors.red, ...typography.body }]}>
@@ -338,10 +394,34 @@ const styles = StyleSheet.create({
   sectionTitle: {
     marginBottom: 12,
   },
+  sectionSubtitle: {
+    marginBottom: 12,
+    lineHeight: 18,
+  },
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  dependenciesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  dependencyChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    maxWidth: '100%',
+  },
+  dependencyChipText: {
+    fontWeight: '500',
+  },
+  noDependenciesText: {
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   optionChip: {
     paddingHorizontal: 16,

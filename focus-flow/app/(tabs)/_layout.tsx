@@ -55,6 +55,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="list"
+        options={{
+          title: 'List',
+          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="gantt"
         options={{
           title: 'Gantt',
@@ -71,6 +78,7 @@ function TabBarIcon({ name, color }: { name: string; color: string }) {
     forecast: '🔮',
     folder: '📁',
     calendar: '📅',
+    list: '📋',
     chart: '📊',
   };
 
