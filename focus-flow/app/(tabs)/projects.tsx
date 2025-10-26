@@ -81,7 +81,7 @@ export default function ProjectsScreen() {
             borderColor: colors.separator,
           },
         ]}
-        onPress={() => router.push(`/project/${item.id}`)}
+        onPress={() => router.push(\/project/${item.id}`)}`
         activeOpacity={0.7}
       >
         <View style={[styles.colorBar, { backgroundColor: item.color }]} />
