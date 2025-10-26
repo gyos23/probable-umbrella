@@ -1,5 +1,5 @@
 import { Task, Project, FocusArea, TaskStatus, TaskPriority } from '../types';
-import { addDays, subDays } from 'date-fns';
+import { addDays, subDays } from './dateUtils';
 
 export const sampleFocusAreas: Omit<FocusArea, 'id' | 'createdAt' | 'updatedAt' | 'order'>[] = [
   {

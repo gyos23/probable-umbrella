@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { Task } from '../types';
 import { useTheme } from '../theme/useTheme';
-import { format } from 'date-fns';
+import { formatDate } from '../utils/dateUtils';
 
 interface TaskRowProps {
   task: Task;
@@ -97,14 +97,14 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
             {task.dueDate && (
               <View style={[styles.badge, { backgroundColor: colors.secondaryBackground }]}>
                 <Text style={[styles.badgeText, { color: colors.secondaryText, ...typography.caption1 }]}>
-                  Due: {format(task.dueDate, 'MMM d')}
+                  Due: {formatDate(task.dueDate, 'MMM d')}
                 </Text>
               </View>
             )}
             {task.plannedDate && (
               <View style={[styles.badge, { backgroundColor: colors.secondaryBackground }]}>
                 <Text style={[styles.badgeText, { color: colors.secondaryText, ...typography.caption1 }]}>
-                  Planned: {format(task.plannedDate, 'MMM d')}
+                  Planned: {formatDate(task.plannedDate, 'MMM d')}
                 </Text>
               </View>
             )}
