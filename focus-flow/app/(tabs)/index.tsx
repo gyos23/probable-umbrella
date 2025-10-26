@@ -115,7 +115,7 @@ export default function TasksScreen() {
         renderItem={({ item }) => (
           <TaskRow
             task={item}
-            onPress={() => router.push(\/task/${item.id}`)}`
+            onPress={() => router.push(`/task/${item.id}`)}
             onToggleComplete={() => toggleTaskComplete(item.id)}
           />
         )}
