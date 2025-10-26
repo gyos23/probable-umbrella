@@ -133,10 +133,21 @@ export default function ProjectsScreen() {
         }
       />
 
-      <View style={[styles.fab, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => setIsAddModalVisible(true)} style={styles.fabButton}>
-          <Text style={styles.fabText}>+</Text>
+      <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={[styles.importButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.primary }]}
+          onPress={() => router.push('/import')}
+        >
+          <Text style={[styles.importButtonText, { color: colors.primary, ...typography.caption1 }]}>
+            📥 Import from OmniFocus
+          </Text>
         </TouchableOpacity>
+
+        <View style={[styles.fab, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity onPress={() => setIsAddModalVisible(true)} style={styles.fabButton}>
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Modal
@@ -289,10 +300,28 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
-  fab: {
+  fabContainer: {
     position: 'absolute',
     bottom: 24,
     right: 24,
+    alignItems: 'flex-end',
+    gap: 12,
+  },
+  importButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  importButtonText: {
+    fontWeight: '600',
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,
