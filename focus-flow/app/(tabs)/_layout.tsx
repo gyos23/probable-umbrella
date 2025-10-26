@@ -34,6 +34,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="forecast"
+        options={{
+          title: 'Forecast',
+          tabBarIcon: ({ color }) => <TabBarIcon name="forecast" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="projects"
         options={{
           title: 'Projects',
@@ -61,6 +68,7 @@ export default function TabLayout() {
 function TabBarIcon({ name, color }: { name: string; color: string }) {
   const icons: Record<string, string> = {
     checklist: '✓',
+    forecast: '🔮',
     folder: '📁',
     calendar: '📅',
     chart: '📊',

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
+import { EmptyState } from '../../src/components/EmptyState';
 import { useTheme } from '../../src/theme/useTheme';
 import { Project } from '../../src/types';
 
@@ -125,11 +126,13 @@ export default function ProjectsScreen() {
         renderItem={renderProjectCard}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyStateText, { color: colors.tertiaryText, ...typography.body }]}>
-              No projects yet. Tap + to create your first project!
-            </Text>
-          </View>
+          <EmptyState
+            emoji="📁"
+            title="No Projects Yet"
+            message="Projects help you organize related tasks. Create your first project to get started, or import from OmniFocus!"
+            actionLabel="Create Project"
+            onAction={() => setIsAddModalVisible(true)}
+          />
         }
       />
 

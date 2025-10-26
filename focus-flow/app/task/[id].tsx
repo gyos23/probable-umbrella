@@ -14,6 +14,7 @@ import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { TaskStatus, TaskPriority } from '../../src/types';
 import { formatDate } from '../../src/utils/dateUtils';
+import { DatePicker } from '../../src/components/DatePicker';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,19 +83,6 @@ export default function TaskDetailScreen() {
         },
       ]
     );
-  };
-
-  const handleSetDueDate = () => {
-    // For now, set to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    updateTask(id!, { dueDate: tomorrow });
-  };
-
-  const handleSetPlannedDate = () => {
-    // For now, set to today
-    const today = new Date();
-    updateTask(id!, { plannedDate: today });
   };
 
   return (
@@ -275,47 +263,18 @@ export default function TaskDetailScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
             Dates
           </Text>
-          <View style={styles.dateRow}>
-            <View style={styles.dateItem}>
-              <Text style={[styles.dateLabel, { color: colors.secondaryText, ...typography.caption1 }]}>
-                Due Date
-              </Text>
-              {task.dueDate ? (
-                <View style={styles.dateValue}>
-                  <Text style={[styles.dateText, { color: colors.text, ...typography.body }]}>
-                    {formatDate(task.dueDate, 'MMM d, yyyy')}
-                  </Text>
-                  <TouchableOpacity onPress={() => updateTask(id!, { dueDate: undefined })}>
-                    <Text style={[styles.clearButton, { color: colors.red }]}>Clear</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity onPress={handleSetDueDate}>
-                  <Text style={[styles.addButton, { color: colors.primary }]}>Set Date</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <View style={styles.dateItem}>
-              <Text style={[styles.dateLabel, { color: colors.secondaryText, ...typography.caption1 }]}>
-                Planned Date
-              </Text>
-              {task.plannedDate ? (
-                <View style={styles.dateValue}>
-                  <Text style={[styles.dateText, { color: colors.text, ...typography.body }]}>
-                    {formatDate(task.plannedDate, 'MMM d, yyyy')}
-                  </Text>
-                  <TouchableOpacity onPress={() => updateTask(id!, { plannedDate: undefined })}>
-                    <Text style={[styles.clearButton, { color: colors.red }]}>Clear</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity onPress={handleSetPlannedDate}>
-                  <Text style={[styles.addButton, { color: colors.primary }]}>Set Date</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <DatePicker
+            label="Due Date"
+            value={task.dueDate}
+            onChange={(date) => updateTask(id!, { dueDate: date })}
+            placeholder="No due date"
+          />
+          <DatePicker
+            label="Planned Date"
+            value={task.plannedDate}
+            onChange={(date) => updateTask(id!, { plannedDate: date })}
+            placeholder="No planned date"
+          />
         </View>
 
         <View style={styles.dangerSection}>
