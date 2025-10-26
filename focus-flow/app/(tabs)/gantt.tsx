@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task } from '../../src/types';
@@ -23,8 +24,11 @@ const LEFT_COLUMN_WIDTH = 200;
 
 export default function GanttScreen() {
   const { colors, typography } = useTheme();
+  const router = useRouter();
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useTaskStore((state) => state.projects);
+  const updateTask = useTaskStore((state) => state.updateTask);
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
 
   const tasksWithDates = useMemo(() => {
     return tasks.filter((task) => task.startDate || task.plannedDate || task.dueDate);
@@ -90,6 +94,31 @@ export default function GanttScreen() {
       case 'low':
         return colors.teal;
     }
+  };
+
+  const handleTaskBarPress = (task: Task) => {
+    router.push(`/task/${task.id}`);
+  };
+
+  const handleTaskBarLongPress = (task: Task) => {
+    Alert.alert(
+      'Quick Actions',
+      task.title,
+      [
+        {
+          text: 'Mark Complete',
+          onPress: () => updateTask(task.id, { status: 'completed', progress: 100 }),
+        },
+        {
+          text: 'Edit',
+          onPress: () => router.push(`/task/${task.id}`),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const renderTimelineHeader = () => {
@@ -160,15 +189,22 @@ export default function GanttScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={[styles.timelineArea, { width: days.length * DAY_WIDTH }]}>
             {position && (
-              <View
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => handleTaskBarPress(task)}
+                onLongPress={() => handleTaskBarLongPress(task)}
+                onMouseEnter={() => Platform.OS === 'web' && setHoveredTaskId(task.id)}
+                onMouseLeave={() => Platform.OS === 'web' && setHoveredTaskId(null)}
                 style={[
                   styles.taskBar,
                   {
                     left: position.x,
                     width: position.width,
                     backgroundColor: taskColor,
-                    opacity: task.status === 'completed' ? 0.5 : 0.9,
-                  },
+                    opacity: task.status === 'completed' ? 0.5 : hoveredTaskId === task.id ? 1 : 0.9,
+                    transform: hoveredTaskId === task.id ? [{ scale: 1.05 }] : [{ scale: 1 }],
+                    cursor: Platform.OS === 'web' ? 'pointer' : undefined,
+                  } as any,
                 ]}
               >
                 {task.progress > 0 && task.progress < 100 && (
@@ -188,7 +224,13 @@ export default function GanttScreen() {
                 >
                   {task.title}
                 </Text>
-              </View>
+                {hoveredTaskId === task.id && Platform.OS === 'web' && (
+                  <View style={styles.resizeHandles}>
+                    <View style={[styles.resizeHandle, styles.leftHandle, { backgroundColor: '#FFFFFF' }]} />
+                    <View style={[styles.resizeHandle, styles.rightHandle, { backgroundColor: '#FFFFFF' }]} />
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
 
             {days.map((day, dayIndex) => (
@@ -304,7 +346,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    overflow: 'hidden',
+    overflow: 'visible',
+    transition: 'all 0.2s ease',
   },
   progressFill: {
     position: 'absolute',
@@ -315,5 +358,29 @@ const styles = StyleSheet.create({
   },
   taskBarText: {
     fontWeight: '600',
+  },
+  resizeHandles: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+  },
+  resizeHandle: {
+    position: 'absolute',
+    width: 4,
+    height: '100%',
+    opacity: 0.8,
+  },
+  leftHandle: {
+    left: 0,
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+  },
+  rightHandle: {
+    right: 0,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
   },
 });
