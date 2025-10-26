@@ -43,6 +43,20 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="task/[id]"
+          options={{
+            headerShown: false,
+            presentation: 'card'
+          }}
+        />
+        <Stack.Screen
+          name="project/[id]"
+          options={{
+            headerShown: false,
+            presentation: 'card'
+          }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );
