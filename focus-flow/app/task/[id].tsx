@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { TaskStatus, TaskPriority } from '../../src/types';
@@ -44,9 +43,9 @@ export default function TaskDetailScreen() {
 
   if (!task) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.text }]}>Task not found</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -99,7 +98,7 @@ export default function TaskDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.headerButton, { color: colors.primary, ...typography.body }]}>
@@ -327,7 +326,7 @@ export default function TaskDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

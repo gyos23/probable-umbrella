@@ -10,7 +10,6 @@ import {
   FlatList,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { TaskRow } from '../../src/components/TaskRow';
@@ -52,9 +51,9 @@ export default function ProjectDetailScreen() {
 
   if (!project) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.text }]}>Project not found</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -95,7 +94,7 @@ export default function ProjectDetailScreen() {
   const progress = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.headerButton, { color: colors.primary, ...typography.body }]}>
@@ -218,7 +217,7 @@ export default function ProjectDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
