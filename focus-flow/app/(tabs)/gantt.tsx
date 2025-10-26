@@ -8,13 +8,13 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  format,
+  formatDate as format,
   differenceInDays,
   addDays,
   subDays,
   min,
   max,
-} from 'date-fns';
+} from '../../src/utils/dateUtils';
 import Svg, { Line, Rect, Text as SvgText } from 'react-native-svg';
 
 const DAY_WIDTH = 40;
