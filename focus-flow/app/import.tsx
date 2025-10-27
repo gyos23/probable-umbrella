@@ -188,52 +188,97 @@ export default function ImportScreen() {
         </View>
 
         <View style={[styles.uploadSection, { borderColor: colors.separator }]}>
-          <input
-            type="file"
-            accept=".ofocus"
-            onChange={(e) => {
-              console.log('File input onChange triggered', e);
-              handleFileSelect(e);
-            }}
-            style={{ display: 'none' }}
-            id="ofocus-upload"
-            disabled={importing}
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.uploadButton,
-              {
-                backgroundColor: colors.primary,
-                opacity: importing ? 0.6 : 1,
-              },
-            ]}
-            onPress={() => {
-              console.log('Upload button clicked');
-              const input = document.getElementById('ofocus-upload') as HTMLInputElement;
-              console.log('Input element:', input);
-              if (input) {
-                console.log('Triggering click on input');
-                input.click();
-              } else {
-                console.error('Could not find file input element!');
-              }
-            }}
-            disabled={importing}
-          >
-            {importing ? (
-              <>
-                <ActivityIndicator color="#FFFFFF" />
-                <Text style={[styles.progressText, { ...typography.caption1 }]}>
-                  {importProgress}%
-                </Text>
-              </>
-            ) : (
-              <Text style={[styles.uploadButtonText, { ...typography.body }]}>
-                Choose .ofocus File
-              </Text>
-            )}
-          </TouchableOpacity>
+          {Platform.OS === 'web' ? (
+            <>
+              <input
+                type="file"
+                accept=".ofocus"
+                onChange={(e) => {
+                  console.log('File input onChange triggered', e);
+                  handleFileSelect(e);
+                }}
+                style={{ display: 'none' }}
+                id="ofocus-upload"
+                disabled={importing}
+              />
+              <label htmlFor="ofocus-upload" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: importing ? `${colors.primary}99` : colors.primary,
+                paddingLeft: 32,
+                paddingRight: 32,
+                paddingTop: 16,
+                paddingBottom: 16,
+                borderRadius: 8,
+                minWidth: 200,
+                cursor: importing ? 'not-allowed' : 'pointer',
+                pointerEvents: importing ? 'none' : 'auto',
+              }}>
+                {importing ? (
+                  <View style={{ alignItems: 'center' }}>
+                    <ActivityIndicator color="#FFFFFF" />
+                    <Text style={[styles.progressText, { ...typography.caption1 }]}>
+                      {importProgress}%
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.uploadButtonText, { ...typography.body }]}>
+                    Choose .ofocus File
+                  </Text>
+                )}
+              </label>
+            </>
+          ) : (
+            <>
+              <input
+                type="file"
+                accept=".ofocus"
+                onChange={(e) => {
+                  console.log('File input onChange triggered', e);
+                  handleFileSelect(e);
+                }}
+                style={{ display: 'none' }}
+                id="ofocus-upload"
+                disabled={importing}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.uploadButton,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: importing ? 0.6 : 1,
+                  },
+                ]}
+                onPress={() => {
+                  console.log('Upload button clicked');
+                  const input = document.getElementById('ofocus-upload') as HTMLInputElement;
+                  console.log('Input element:', input);
+                  if (input) {
+                    console.log('Triggering click on input');
+                    input.click();
+                  } else {
+                    console.error('Could not find file input element!');
+                  }
+                }}
+                disabled={importing}
+              >
+                {importing ? (
+                  <>
+                    <ActivityIndicator color="#FFFFFF" />
+                    <Text style={[styles.progressText, { ...typography.caption1 }]}>
+                      {importProgress}%
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.uploadButtonText, { ...typography.body }]}>
+                    Choose .ofocus File
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
 
           {importing && (
             <View style={styles.progressContainer}>
