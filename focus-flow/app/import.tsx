@@ -16,11 +16,24 @@ export default function ImportScreen() {
   } | null>(null);
 
   const handleFileSelect = async (event: any) => {
+    console.log('handleFileSelect called', event);
     try {
       const file = event.target.files?.[0];
-      if (!file) return;
+      console.log('Selected file:', file);
+
+      if (!file) {
+        console.log('No file selected');
+        return;
+      }
+
+      console.log('File details:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
 
       if (!file.name.endsWith('.ofocus')) {
+        console.log('Invalid file type');
         Alert.alert('Error', 'Please select a valid .ofocus file');
         return;
       }
@@ -178,7 +191,10 @@ export default function ImportScreen() {
           <input
             type="file"
             accept=".ofocus"
-            onChange={handleFileSelect}
+            onChange={(e) => {
+              console.log('File input onChange triggered', e);
+              handleFileSelect(e);
+            }}
             style={{ display: 'none' }}
             id="ofocus-upload"
             disabled={importing}
@@ -192,7 +208,17 @@ export default function ImportScreen() {
                 opacity: importing ? 0.6 : 1,
               },
             ]}
-            onPress={() => document.getElementById('ofocus-upload')?.click()}
+            onPress={() => {
+              console.log('Upload button clicked');
+              const input = document.getElementById('ofocus-upload') as HTMLInputElement;
+              console.log('Input element:', input);
+              if (input) {
+                console.log('Triggering click on input');
+                input.click();
+              } else {
+                console.error('Could not find file input element!');
+              }
+            }}
             disabled={importing}
           >
             {importing ? (
