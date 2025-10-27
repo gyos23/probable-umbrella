@@ -46,9 +46,20 @@ export default function GanttScreen() {
       };
     }
 
-    const dates = tasksWithDates.flatMap((task) =>
-      [task.startDate, task.plannedDate, task.dueDate].filter(Boolean) as Date[]
-    );
+    const dates = tasksWithDates
+      .flatMap((task) => [task.startDate, task.plannedDate, task.dueDate])
+      .filter((date): date is Date | string => date != null);
+
+    if (dates.length === 0) {
+      const today = new Date();
+      const start = startOfMonth(today);
+      const end = endOfMonth(today);
+      return {
+        minDate: start,
+        maxDate: end,
+        days: eachDayOfInterval({ start, end }),
+      };
+    }
 
     const earliest = min(dates);
     const latest = max(dates);
