@@ -9,6 +9,7 @@ export default function ImportScreen() {
   const { colors, typography, spacing } = useTheme();
   const router = useRouter();
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [importStats, setImportStats] = useState<{
     tasks: number;
     projects: number;
@@ -24,11 +25,32 @@ export default function ImportScreen() {
         return;
       }
 
+      // Warn about large files
+      const fileSizeMB = file.size / (1024 * 1024);
+      if (fileSizeMB > 10) {
+        const proceed = await new Promise((resolve) => {
+          Alert.alert(
+            'Large File Detected',
+            `This file is ${fileSizeMB.toFixed(1)}MB. Large imports may take several minutes. Continue?`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Continue', onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!proceed) return;
+      }
+
       setImporting(true);
       setImportStats(null);
+      setImportProgress(10);
 
       // Parse the .ofocus file
+      console.log('Starting OmniFocus file parse...');
       const { tasks, projects } = await parseOFocusFile(file);
+      console.log(`Parsed ${projects.length} projects and ${tasks.length} tasks`);
+
+      setImportProgress(40);
 
       // Import into store
       const store = useTaskStore.getState();
@@ -38,33 +60,49 @@ export default function ImportScreen() {
       const projectNameToId = new Map<string, string>();
 
       // Import projects first and map names to IDs
-      projects.forEach((project) => {
-        store.addProject(project);
-        // Get the newly created project ID
-        const newProjectId = store.projects[store.projects.length - 1]?.id;
-        if (newProjectId) {
-          projectNameToId.set(project.name, newProjectId);
-        }
-        importedProjects++;
-      });
+      console.log('Importing projects...');
+      const BATCH_SIZE = 50;
 
-      // Then import tasks with proper project ID mapping
-      tasks.forEach((task) => {
-        const mappedTask = { ...task };
-        // Map project name to actual project ID
-        if (mappedTask.projectId) {
-          const actualProjectId = projectNameToId.get(mappedTask.projectId);
-          mappedTask.projectId = actualProjectId;
-        }
-        store.addTask(mappedTask);
-        importedTasks++;
-      });
+      for (let i = 0; i < projects.length; i += BATCH_SIZE) {
+        const batch = projects.slice(i, i + BATCH_SIZE);
+        batch.forEach((project) => {
+          store.addProject(project);
+          const newProjectId = store.projects[store.projects.length - 1]?.id;
+          if (newProjectId) {
+            projectNameToId.set(project.name, newProjectId);
+          }
+          importedProjects++;
+        });
+        setImportProgress(40 + (20 * (i / projects.length)));
+        // Allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
 
+      console.log('Importing tasks...');
+      // Import tasks in batches to avoid memory issues
+      for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+        const batch = tasks.slice(i, i + BATCH_SIZE);
+        batch.forEach((task) => {
+          const mappedTask = { ...task };
+          if (mappedTask.projectId) {
+            const actualProjectId = projectNameToId.get(mappedTask.projectId);
+            mappedTask.projectId = actualProjectId;
+          }
+          store.addTask(mappedTask);
+          importedTasks++;
+        });
+        setImportProgress(60 + (40 * (i / tasks.length)));
+        // Allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
+      setImportProgress(100);
       setImportStats({
         tasks: importedTasks,
         projects: importedProjects,
       });
 
+      console.log('Import completed successfully');
       Alert.alert(
         'Import Successful',
         `Imported ${importedTasks} tasks and ${importedProjects} projects from OmniFocus!`,
@@ -77,9 +115,14 @@ export default function ImportScreen() {
       );
     } catch (error) {
       console.error('Import error:', error);
-      Alert.alert('Import Failed', `Error: ${error.message || 'Unknown error occurred'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert(
+        'Import Failed',
+        `Error: ${errorMessage}\n\nTry with a smaller export or contact support if the issue persists.`
+      );
     } finally {
       setImporting(false);
+      setImportProgress(0);
     }
   };
 
@@ -158,7 +201,12 @@ export default function ImportScreen() {
             disabled={importing}
           >
             {importing ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <>
+                <ActivityIndicator color="#FFFFFF" />
+                <Text style={[styles.progressText, { ...typography.caption1 }]}>
+                  {importProgress}%
+                </Text>
+              </>
             ) : (
               <Text style={[styles.uploadButtonText, { ...typography.body }]}>
                 Choose .ofocus File
@@ -167,9 +215,24 @@ export default function ImportScreen() {
           </TouchableOpacity>
 
           {importing && (
-            <Text style={[styles.importingText, { color: colors.secondaryText, ...typography.body }]}>
-              Importing your data...
-            </Text>
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${importProgress}%`,
+                      backgroundColor: colors.primary
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={[styles.importingText, { color: colors.secondaryText, ...typography.caption1 }]}>
+                {importProgress < 40 ? 'Parsing file...' :
+                 importProgress < 60 ? 'Importing projects...' :
+                 importProgress < 100 ? 'Importing tasks...' : 'Finalizing...'}
+              </Text>
+            </View>
           )}
 
           {importStats && (
@@ -276,8 +339,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  importingText: {
+  progressText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  progressContainer: {
+    width: '100%',
     marginTop: 16,
+    alignItems: 'center',
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  importingText: {
+    marginTop: 8,
   },
   statsBox: {
     marginTop: 24,
