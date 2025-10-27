@@ -26,6 +26,7 @@ export default function TaskDetailScreen() {
   const projects = useTaskStore((state) => state.projects);
   const updateTask = useTaskStore((state) => state.updateTask);
   const deleteTask = useTaskStore((state) => state.deleteTask);
+  const addTask = useTaskStore((state) => state.addTask);
   const addDependency = useTaskStore((state) => state.addDependency);
   const removeDependency = useTaskStore((state) => state.removeDependency);
 
@@ -34,6 +35,8 @@ export default function TaskDetailScreen() {
   const [status, setStatus] = useState<TaskStatus>(task?.status || 'todo');
   const [priority, setPriority] = useState<TaskPriority>(task?.priority || 'medium');
   const [projectId, setProjectId] = useState<string | undefined>(task?.projectId);
+  const [showNewDependency, setShowNewDependency] = useState(false);
+  const [newDependencyTitle, setNewDependencyTitle] = useState('');
 
   useEffect(() => {
     if (task) {
@@ -86,6 +89,32 @@ export default function TaskDetailScreen() {
         },
       ]
     );
+  };
+
+  const handleCreateDependency = () => {
+    if (!newDependencyTitle.trim()) {
+      Alert.alert('Error', 'Please enter a task title');
+      return;
+    }
+
+    // Create new task with same project
+    addTask({
+      title: newDependencyTitle.trim(),
+      status: 'todo',
+      priority: 'medium',
+      projectId: task?.projectId,
+    });
+
+    // Get the newly created task ID (it will be the last task)
+    setTimeout(() => {
+      const allCurrentTasks = useTaskStore.getState().tasks;
+      const newTask = allCurrentTasks[allCurrentTasks.length - 1];
+      if (newTask) {
+        addDependency(id!, newTask.id);
+      }
+      setNewDependencyTitle('');
+      setShowNewDependency(false);
+    }, 100);
   };
 
   return (
@@ -326,10 +355,50 @@ export default function TaskDetailScreen() {
                 );
               })}
           </View>
-          {task.dependsOn.length === 0 && (
+          {task.dependsOn.length === 0 && !showNewDependency && (
             <Text style={[styles.noDependenciesText, { color: colors.tertiaryText, ...typography.caption1 }]}>
               No dependencies added
             </Text>
+          )}
+
+          {/* Create New Dependency */}
+          {showNewDependency ? (
+            <View style={[styles.newDependencyContainer, { backgroundColor: colors.secondaryBackground }]}>
+              <TextInput
+                style={[styles.newDependencyInput, { color: colors.text, borderColor: colors.separator, ...typography.body }]}
+                placeholder="New dependency task title"
+                placeholderTextColor={colors.tertiaryText}
+                value={newDependencyTitle}
+                onChangeText={setNewDependencyTitle}
+                autoFocus
+              />
+              <View style={styles.newDependencyActions}>
+                <TouchableOpacity
+                  style={[styles.newDependencyButton, { backgroundColor: colors.primary }]}
+                  onPress={handleCreateDependency}
+                >
+                  <Text style={[styles.newDependencyButtonText, { ...typography.caption1 }]}>Create</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.newDependencyButton, { backgroundColor: colors.secondaryText }]}
+                  onPress={() => {
+                    setShowNewDependency(false);
+                    setNewDependencyTitle('');
+                  }}
+                >
+                  <Text style={[styles.newDependencyButtonText, { ...typography.caption1 }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.addDependencyButton, { borderColor: colors.separator }]}
+              onPress={() => setShowNewDependency(true)}
+            >
+              <Text style={[styles.addDependencyButtonText, { color: colors.primary, ...typography.caption1 }]}>
+                + Create New Dependent Task
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -422,6 +491,42 @@ const styles = StyleSheet.create({
   noDependenciesText: {
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  newDependencyContainer: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  newDependencyInput: {
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 6,
+  },
+  newDependencyActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  newDependencyButton: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  newDependencyButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  addDependencyButton: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addDependencyButtonText: {
+    fontWeight: '600',
   },
   optionChip: {
     paddingHorizontal: 16,

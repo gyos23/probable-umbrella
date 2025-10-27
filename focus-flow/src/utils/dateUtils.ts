@@ -1,14 +1,18 @@
 // Native date utilities to replace date-fns
 
-export const formatDate = (date: Date, formatStr: string): string => {
+export const formatDate = (date: Date | string, formatStr: string): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  if (formatStr === 'd') return String(date.getDate());
-  if (formatStr === 'MMM d') return `${months[date.getMonth()]} ${date.getDate()}`;
-  if (formatStr === 'MMM d, yyyy') return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-  if (formatStr === 'MMMM yyyy') return `${fullMonths[date.getMonth()]} ${date.getFullYear()}`;
-  return date.toLocaleDateString();
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  if (formatStr === 'EEE') return days[d.getDay()];
+  if (formatStr === 'd') return String(d.getDate());
+  if (formatStr === 'MMM d') return `${months[d.getMonth()]} ${d.getDate()}`;
+  if (formatStr === 'MMM d, yyyy') return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  if (formatStr === 'MMMM yyyy') return `${fullMonths[d.getMonth()]} ${d.getFullYear()}`;
+  return d.toLocaleDateString();
 };
 
 export const isSameDay = (date1: Date, date2: Date): boolean => {
@@ -78,15 +82,25 @@ export const subDays = (date: Date, amount: number): Date => {
   return addDays(date, -amount);
 };
 
-export const differenceInDays = (date1: Date, date2: Date): number => {
+export const differenceInDays = (date1: Date | string, date2: Date | string): number => {
+  const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
+  const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
   const oneDay = 24 * 60 * 60 * 1000;
-  return Math.round((date1.getTime() - date2.getTime()) / oneDay);
+  return Math.round((d1.getTime() - d2.getTime()) / oneDay);
 };
 
-export const min = (...dates: Date[]): Date => {
-  return new Date(Math.min(...dates.map(d => d.getTime())));
+export const min = (dates: (Date | string)[]): Date => {
+  const dateTimes = dates.map(d => {
+    const date = typeof d === 'string' ? new Date(d) : d;
+    return date.getTime();
+  });
+  return new Date(Math.min(...dateTimes));
 };
 
-export const max = (...dates: Date[]): Date => {
-  return new Date(Math.max(...dates.map(d => d.getTime())));
+export const max = (dates: (Date | string)[]): Date => {
+  const dateTimes = dates.map(d => {
+    const date = typeof d === 'string' ? new Date(d) : d;
+    return date.getTime();
+  });
+  return new Date(Math.max(...dateTimes));
 };
