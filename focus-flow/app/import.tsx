@@ -52,60 +52,55 @@ export default function ImportScreen() {
 
       setImportProgress(40);
 
-      // Import into store
+      // Import into store using bulk operations
       const store = useTaskStore.getState();
-
-      let importedTasks = 0;
-      let importedProjects = 0;
       const projectNameToId = new Map<string, string>();
 
-      // Import projects first and map names to IDs
-      console.log('Importing projects...');
-      const BATCH_SIZE = 50;
+      console.log('Importing projects in bulk...');
+      // Bulk import all projects at once (much faster!)
+      const newProjectIds = store.bulkAddProjects(projects);
 
-      for (let i = 0; i < projects.length; i += BATCH_SIZE) {
-        const batch = projects.slice(i, i + BATCH_SIZE);
-        batch.forEach((project) => {
-          store.addProject(project);
-          const newProjectId = store.projects[store.projects.length - 1]?.id;
-          if (newProjectId) {
-            projectNameToId.set(project.name, newProjectId);
-          }
-          importedProjects++;
-        });
-        setImportProgress(40 + (20 * (i / projects.length)));
-        // Allow UI to update
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
+      // Map project names to their new IDs
+      projects.forEach((project, index) => {
+        projectNameToId.set(project.name, newProjectIds[index]);
+      });
 
-      console.log('Importing tasks...');
-      // Import tasks in batches to avoid memory issues
-      for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
-        const batch = tasks.slice(i, i + BATCH_SIZE);
-        batch.forEach((task) => {
-          const mappedTask = { ...task };
-          if (mappedTask.projectId) {
-            const actualProjectId = projectNameToId.get(mappedTask.projectId);
-            mappedTask.projectId = actualProjectId;
-          }
-          store.addTask(mappedTask);
-          importedTasks++;
-        });
-        setImportProgress(60 + (40 * (i / tasks.length)));
-        // Allow UI to update
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
+      setImportProgress(60);
+      console.log(`Imported ${projects.length} projects`);
+
+      console.log('Mapping and importing tasks in bulk...');
+      // Map project IDs for all tasks
+      const mappedTasks = tasks.map((task) => {
+        const mappedTask = { ...task };
+        if (mappedTask.projectId) {
+          const actualProjectId = projectNameToId.get(mappedTask.projectId);
+          mappedTask.projectId = actualProjectId;
+        }
+        return mappedTask;
+      });
+
+      setImportProgress(80);
+
+      // Bulk import all tasks at once
+      store.bulkAddTasks(mappedTasks);
+
+      setImportProgress(95);
+      console.log(`Imported ${tasks.length} tasks`);
+
+      // Save everything to storage once at the end
+      console.log('Saving to storage...');
+      await store.saveData();
 
       setImportProgress(100);
       setImportStats({
-        tasks: importedTasks,
-        projects: importedProjects,
+        tasks: tasks.length,
+        projects: projects.length,
       });
 
       console.log('Import completed successfully');
       Alert.alert(
         'Import Successful',
-        `Imported ${importedTasks} tasks and ${importedProjects} projects from OmniFocus!`,
+        `Imported ${tasks.length} tasks and ${projects.length} projects from OmniFocus!`,
         [
           {
             text: 'View Tasks',
@@ -230,7 +225,9 @@ export default function ImportScreen() {
               <Text style={[styles.importingText, { color: colors.secondaryText, ...typography.caption1 }]}>
                 {importProgress < 40 ? 'Parsing file...' :
                  importProgress < 60 ? 'Importing projects...' :
-                 importProgress < 100 ? 'Importing tasks...' : 'Finalizing...'}
+                 importProgress < 80 ? 'Mapping tasks...' :
+                 importProgress < 95 ? 'Importing tasks...' :
+                 importProgress < 100 ? 'Saving to storage...' : 'Complete!'}
               </Text>
             </View>
           )}

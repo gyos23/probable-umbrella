@@ -12,11 +12,13 @@ interface TaskStore {
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTaskComplete: (id: string) => void;
+  bulkAddTasks: (tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[]) => void;
 
   // Project actions
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
+  bulkAddProjects: (projects: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>[]) => string[];
 
   // Focus Area actions
   addFocusArea: (area: Omit<FocusArea, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => void;
@@ -200,6 +202,39 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }),
     }));
     get().saveData();
+  },
+
+  // Bulk operations for import (no save per item)
+  bulkAddProjects: (projectsData) => {
+    const newProjects: Project[] = projectsData.map((projectData, index) => ({
+      ...projectData,
+      id: generateId(),
+      status: 'todo',
+      progress: 0,
+      order: get().projects.length + index,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    set((state) => ({ projects: [...state.projects, ...newProjects] }));
+    // Return IDs for mapping
+    return newProjects.map(p => p.id);
+  },
+
+  bulkAddTasks: (tasksData) => {
+    const newTasks: Task[] = tasksData.map((taskData, index) => ({
+      ...taskData,
+      id: generateId(),
+      progress: 0,
+      order: get().tasks.length + index,
+      dependsOn: [],
+      blockedBy: [],
+      tags: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    set((state) => ({ tasks: [...state.tasks, ...newTasks] }));
   },
 
   loadData: async () => {
