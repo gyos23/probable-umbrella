@@ -29,6 +29,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: 'Home',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
           title: 'Tasks',
           tabBarIcon: ({ color }) => <TabBarIcon name="checklist" color={color} />,
         }}
@@ -57,15 +64,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="list"
         options={{
-          title: 'List',
-          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+          title: 'Views',
+          tabBarIcon: ({ color }) => <TabBarIcon name="views" color={color} />,
         }}
       />
       <Tabs.Screen
         name="gantt"
         options={{
-          title: 'Gantt',
-          tabBarIcon: ({ color }) => <TabBarIcon name="chart" color={color} />,
+          href: null, // Hide from tabs, accessible via list view
         }}
       />
     </Tabs>
@@ -74,11 +80,12 @@ export default function TabLayout() {
 
 function TabBarIcon({ name, color }: { name: string; color: string }) {
   const icons: Record<string, string> = {
+    home: '🏠',
     checklist: '✓',
     forecast: '🔮',
     folder: '📁',
     calendar: '📅',
-    list: '📋',
+    views: '📊',
     chart: '📊',
   };
 
