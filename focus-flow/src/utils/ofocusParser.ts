@@ -32,6 +32,14 @@ interface OFProject {
   task?: OFTask[];
 }
 
+// Helper to extract text from fields that might be objects with #text property
+function extractText(value: any): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value['#text']) return value['#text'];
+  return undefined;
+}
+
 export async function parseOFocusFile(file: File): Promise<{
   tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[];
   projects: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>[];
@@ -253,9 +261,10 @@ export async function parseOFocusFile(file: File): Promise<{
     allTasks.forEach((item: any) => {
       // If item has a 'project' field, it's a project
       if (item.project && typeof item.project === 'object') {
+        const projectName = extractText(item.name) || 'Untitled Project';
         const project = {
-          name: item.name || 'Untitled Project',
-          description: item.note || '',
+          name: projectName,
+          description: extractText(item.note) || '',
           color: getRandomColor(),
           startDate: parseOFDate(item.start),
           targetDate: parseOFDate(item.due),
@@ -265,7 +274,7 @@ export async function parseOFocusFile(file: File): Promise<{
 
         // Store mapping for task assignment later
         if (item['@_id']) {
-          projectMap.set(item['@_id'], item.name || 'Untitled Project');
+          projectMap.set(item['@_id'], projectName);
         }
       }
     });
@@ -313,7 +322,8 @@ function convertOFTask(
   ofTask: OFTask,
   projectName?: string
 ): Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'> {
-  const parseOFDate = (dateStr?: string): Date | undefined => {
+  const parseOFDate = (dateValue?: any): Date | undefined => {
+    const dateStr = extractText(dateValue);
     if (!dateStr) return undefined;
     try {
       return new Date(dateStr);
@@ -322,17 +332,18 @@ function convertOFTask(
     }
   };
 
-  const mapStatus = (completed?: string): TaskStatus => {
+  const mapStatus = (completed?: any): TaskStatus => {
     return completed ? 'completed' : 'todo';
   };
 
-  const mapPriority = (flagged?: string): TaskPriority => {
-    return flagged === 'true' ? 'high' : 'medium';
+  const mapPriority = (flagged?: any): TaskPriority => {
+    const flaggedStr = extractText(flagged);
+    return flaggedStr === 'true' ? 'high' : 'medium';
   };
 
   return {
-    title: ofTask.name || 'Untitled Task',
-    notes: ofTask.note || '',
+    title: extractText(ofTask.name) || 'Untitled Task',
+    notes: extractText(ofTask.note) || '',
     status: mapStatus(ofTask.completed),
     priority: mapPriority(ofTask.flagged),
     projectId: projectName, // Will be matched to actual project ID during import
