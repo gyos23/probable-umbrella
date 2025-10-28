@@ -239,67 +239,62 @@ export async function parseOFocusFile(file: File): Promise<{
       console.log('First folder sample:', JSON.stringify(ofFolders[0], null, 2).substring(0, 500));
     }
 
-    // Check if tasks have project references (for debugging)
-    if (omnifocus.task) {
-      const debugTasks = Array.isArray(omnifocus.task) ? omnifocus.task : [omnifocus.task];
-      if (debugTasks.length > 0) {
-        console.log('First task sample:', JSON.stringify(debugTasks[0], null, 2).substring(0, 500));
-      }
-    }
-
-    ofProjects.forEach((ofProject: OFProject) => {
-      if (!ofProject.name) return;
-
-      const project = {
-        name: ofProject.name,
-        description: ofProject.note || '',
-        color: getRandomColor(),
-        startDate: parseOFDate(ofProject.start),
-        targetDate: parseOFDate(ofProject.due),
-      };
-
-      projects.push(project);
-
-      // Store mapping for task assignment later
-      if (ofProject.id) {
-        projectMap.set(ofProject.id, ofProject.name);
-      }
-
-      // Process tasks within the project
-      if (ofProject.task) {
-        const projectTasks = Array.isArray(ofProject.task)
-          ? ofProject.task
-          : [ofProject.task];
-
-        projectTasks.forEach((ofTask: OFTask) => {
-          tasks.push(convertOFTask(ofTask, ofProject.name));
-        });
-      }
-    });
-
-    // Process standalone tasks (inbox items)
-    const ofTasks = Array.isArray(omnifocus.task)
+    // Process projects and tasks
+    // In OmniFocus 4, projects and tasks are unified - tasks with a 'project' field are projects
+    const allTasks = Array.isArray(omnifocus.task)
       ? omnifocus.task
       : omnifocus.task
       ? [omnifocus.task]
       : [];
 
-    ofTasks.forEach((ofTask: OFTask) => {
-      const projectName = ofTask.project ? projectMap.get(ofTask.project) : undefined;
-      tasks.push(convertOFTask(ofTask, projectName));
+    console.log(`Processing ${allTasks.length} total items (projects + tasks)`);
+
+    // First pass: identify and create projects
+    allTasks.forEach((item: any) => {
+      // If item has a 'project' field, it's a project
+      if (item.project && typeof item.project === 'object') {
+        const project = {
+          name: item.name || 'Untitled Project',
+          description: item.note || '',
+          color: getRandomColor(),
+          startDate: parseOFDate(item.start),
+          targetDate: parseOFDate(item.due),
+        };
+
+        projects.push(project);
+
+        // Store mapping for task assignment later
+        if (item['@_id']) {
+          projectMap.set(item['@_id'], item.name || 'Untitled Project');
+        }
+      }
     });
 
-    // Process contexts (OmniFocus version may store tasks here)
-    const ofContexts = Array.isArray(omnifocus.context)
-      ? omnifocus.context
-      : omnifocus.context
-      ? [omnifocus.context]
-      : [];
+    console.log(`Identified ${projects.length} projects`);
 
-    ofContexts.forEach((context: any) => {
-      if (context.task) {
-        const contextTasks = Array.isArray(context.task) ? context.task : [context.task];
-        contextTasks.forEach((ofTask: OFTask) => {
+    // Second pass: process regular tasks
+    allTasks.forEach((item: any) => {
+      // Skip items that are projects
+      if (item.project && typeof item.project === 'object') {
+        return;
+      }
+
+      // This is a regular task
+      const task = convertOFTask(item);
+
+      // Check if this task belongs to a project (has a parent that's a project)
+      // We'll need to match it up later based on task hierarchy
+
+      tasks.push(task);
+    });
+
+    console.log(`Processed ${tasks.length} regular tasks`);
+
+    // Also process tasks from folders if any
+    ofFolders.forEach((folder: any) => {
+      if (folder.task) {
+        const folderTasks = Array.isArray(folder.task) ? folder.task : [folder.task];
+        folderTasks.forEach((ofTask: OFTask) => {
           tasks.push(convertOFTask(ofTask));
         });
       }
