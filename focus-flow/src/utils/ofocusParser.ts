@@ -239,14 +239,12 @@ export async function parseOFocusFile(file: File): Promise<{
       console.log('First folder sample:', JSON.stringify(ofFolders[0], null, 2).substring(0, 500));
     }
 
-    // Check if tasks have project references
-    const ofTasks = Array.isArray(omnifocus.task)
-      ? omnifocus.task
-      : omnifocus.task
-      ? [omnifocus.task]
-      : [];
-    if (ofTasks.length > 0) {
-      console.log('First task sample:', JSON.stringify(ofTasks[0], null, 2).substring(0, 500));
+    // Check if tasks have project references (for debugging)
+    if (omnifocus.task) {
+      const debugTasks = Array.isArray(omnifocus.task) ? omnifocus.task : [omnifocus.task];
+      if (debugTasks.length > 0) {
+        console.log('First task sample:', JSON.stringify(debugTasks[0], null, 2).substring(0, 500));
+      }
     }
 
     ofProjects.forEach((ofProject: OFProject) => {
