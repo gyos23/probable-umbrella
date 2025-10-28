@@ -69,6 +69,35 @@ export async function parseOFocusFile(file: File): Promise<{
       contentsFile = zip.file('OmniFocus.ofocus/contents.xml');
     }
 
+    // If still not found, check if there's an .ofocus file inside this zip
+    // (double-nested: .zip containing .ofocus)
+    if (!contentsFile) {
+      const ofocusFile = fileList.find(path => path.endsWith('.ofocus') && !path.includes('/'));
+      if (ofocusFile) {
+        console.log(`Found nested .ofocus file: ${ofocusFile}, extracting...`);
+        const nestedZipFile = zip.file(ofocusFile);
+        if (nestedZipFile) {
+          const nestedArrayBuffer = await nestedZipFile.async('arraybuffer');
+          const nestedZip = await JSZip.loadAsync(nestedArrayBuffer);
+
+          // List files in nested zip
+          console.log('Files in nested .ofocus archive:');
+          nestedZip.forEach((relativePath, file) => {
+            console.log(`  - ${relativePath} (dir: ${file.dir})`);
+          });
+
+          // Try to find contents.xml in the nested zip
+          contentsFile = nestedZip.file('contents.xml');
+          if (!contentsFile) {
+            const nestedContentsPath = Object.keys(nestedZip.files).find(path => path.endsWith('contents.xml'));
+            if (nestedContentsPath) {
+              contentsFile = nestedZip.file(nestedContentsPath);
+            }
+          }
+        }
+      }
+    }
+
     if (!contentsFile) {
       throw new Error(`Invalid .ofocus file: contents.xml not found. Available files: ${fileList.join(', ')}`);
     }
