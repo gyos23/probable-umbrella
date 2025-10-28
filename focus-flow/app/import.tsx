@@ -34,26 +34,17 @@ export default function ImportScreen() {
 
       if (!file.name.endsWith('.ofocus')) {
         console.log('Invalid file type');
-        Alert.alert('Error', 'Please select a valid .ofocus file');
+        alert('Please select a valid .ofocus file');
         return;
       }
 
-      // Warn about large files
+      // Log file size warning but don't block
       const fileSizeMB = file.size / (1024 * 1024);
       if (fileSizeMB > 10) {
-        const proceed = await new Promise((resolve) => {
-          Alert.alert(
-            'Large File Detected',
-            `This file is ${fileSizeMB.toFixed(1)}MB. Large imports may take several minutes. Continue?`,
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Continue', onPress: () => resolve(true) },
-            ]
-          );
-        });
-        if (!proceed) return;
+        console.log(`Large file detected: ${fileSizeMB.toFixed(1)}MB. This may take several minutes.`);
       }
 
+      console.log('Starting import process...');
       setImporting(true);
       setImportStats(null);
       setImportProgress(10);
@@ -110,24 +101,16 @@ export default function ImportScreen() {
         projects: projects.length,
       });
 
-      console.log('Import completed successfully');
-      Alert.alert(
-        'Import Successful',
-        `Imported ${tasks.length} tasks and ${projects.length} projects from OmniFocus!`,
-        [
-          {
-            text: 'View Tasks',
-            onPress: () => router.push('/(tabs)'),
-          },
-        ]
-      );
+      console.log('Import completed successfully!');
+      setTimeout(() => {
+        alert(`Import Successful!\n\nImported ${tasks.length} tasks and ${projects.length} projects from OmniFocus!`);
+      }, 100);
     } catch (error) {
       console.error('Import error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert(
-        'Import Failed',
-        `Error: ${errorMessage}\n\nTry with a smaller export or contact support if the issue persists.`
-      );
+      setTimeout(() => {
+        alert(`Import Failed\n\nError: ${errorMessage}\n\nTry with a smaller export or contact support if the issue persists.`);
+      }, 100);
     } finally {
       setImporting(false);
       setImportProgress(0);
