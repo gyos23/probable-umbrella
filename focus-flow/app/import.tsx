@@ -298,6 +298,14 @@ export default function ImportScreen() {
               <Text style={[styles.statsText, { color: colors.secondaryText, ...typography.body }]}>
                 ✓ {importStats.tasks} tasks imported
               </Text>
+              <TouchableOpacity
+                style={[styles.doneButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/(tabs)')}
+              >
+                <Text style={[styles.doneButtonText, { ...typography.body }]}>
+                  Done - View My Tasks
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -427,6 +435,18 @@ const styles = StyleSheet.create({
   },
   statsText: {
     marginVertical: 4,
+  },
+  doneButton: {
+    marginTop: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   noteSection: {
     margin: 20,
