@@ -43,10 +43,63 @@ export async function parseOFocusFile(file: File): Promise<{
     // Unzip the .ofocus file
     const zip = await JSZip.loadAsync(arrayBuffer);
 
+    // Debug: List all files in the zip
+    console.log('Files in zip archive:');
+    const fileList: string[] = [];
+    zip.forEach((relativePath, file) => {
+      console.log(`  - ${relativePath} (dir: ${file.dir})`);
+      fileList.push(relativePath);
+    });
+
     // Find the contents.xml file (OmniFocus stores data here)
-    const contentsFile = zip.file('contents.xml');
+    // Try different possible locations
+    let contentsFile = zip.file('contents.xml');
+
+    // If not found at root, search in subdirectories
     if (!contentsFile) {
-      throw new Error('Invalid .ofocus file: contents.xml not found');
+      const contentsPath = fileList.find(path => path.endsWith('contents.xml'));
+      if (contentsPath) {
+        console.log(`Found contents.xml at: ${contentsPath}`);
+        contentsFile = zip.file(contentsPath);
+      }
+    }
+
+    // Also check for OmniFocus.ofocus/contents.xml pattern
+    if (!contentsFile) {
+      contentsFile = zip.file('OmniFocus.ofocus/contents.xml');
+    }
+
+    // If still not found, check if there's an .ofocus file inside this zip
+    // (double-nested: .zip containing .ofocus)
+    if (!contentsFile) {
+      const ofocusFile = fileList.find(path => path.endsWith('.ofocus') && !path.includes('/'));
+      if (ofocusFile) {
+        console.log(`Found nested .ofocus file: ${ofocusFile}, extracting...`);
+        const nestedZipFile = zip.file(ofocusFile);
+        if (nestedZipFile) {
+          const nestedArrayBuffer = await nestedZipFile.async('arraybuffer');
+          const nestedZip = await JSZip.loadAsync(nestedArrayBuffer);
+
+          // List files in nested zip
+          console.log('Files in nested .ofocus archive:');
+          nestedZip.forEach((relativePath, file) => {
+            console.log(`  - ${relativePath} (dir: ${file.dir})`);
+          });
+
+          // Try to find contents.xml in the nested zip
+          contentsFile = nestedZip.file('contents.xml');
+          if (!contentsFile) {
+            const nestedContentsPath = Object.keys(nestedZip.files).find(path => path.endsWith('contents.xml'));
+            if (nestedContentsPath) {
+              contentsFile = nestedZip.file(nestedContentsPath);
+            }
+          }
+        }
+      }
+    }
+
+    if (!contentsFile) {
+      throw new Error(`Invalid .ofocus file: contents.xml not found. Available files: ${fileList.join(', ')}`);
     }
 
     // Read the XML content
