@@ -178,8 +178,13 @@ export async function parseOFocusFile(file: File): Promise<{
 
     const parsed = parser.parse(xmlContent);
 
+    // Debug: Log parsed structure
+    console.log('Parsed XML structure:', JSON.stringify(parsed, null, 2).substring(0, 2000));
+    console.log('Top-level keys:', Object.keys(parsed));
+
     // Extract data from parsed XML
     const omnifocus = parsed.omnifocus || parsed;
+    console.log('OmniFocus object keys:', Object.keys(omnifocus));
 
     const tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[] = [];
     const projects: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>[] = [];
@@ -213,6 +218,11 @@ export async function parseOFocusFile(file: File): Promise<{
       : omnifocus.project
       ? [omnifocus.project]
       : [];
+
+    console.log(`Found ${ofProjects.length} projects in XML`);
+    if (ofProjects.length > 0) {
+      console.log('First project sample:', JSON.stringify(ofProjects[0], null, 2).substring(0, 500));
+    }
 
     ofProjects.forEach((ofProject: OFProject) => {
       if (!ofProject.name) return;
@@ -271,6 +281,8 @@ export async function parseOFocusFile(file: File): Promise<{
         });
       }
     });
+
+    console.log(`Import complete: ${projects.length} projects, ${tasks.length} tasks`);
 
     return { tasks, projects };
   } catch (error) {
