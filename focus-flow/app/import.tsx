@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/useTheme';
 import { useTaskStore } from '../src/store/taskStore';
@@ -32,9 +32,10 @@ export default function ImportScreen() {
         type: file.type
       });
 
-      if (!file.name.endsWith('.ofocus')) {
-        console.log('Invalid file type');
-        alert('Please select a valid .ofocus file');
+      // Accept both .ofocus and .ofocus.zip (OmniFocus exports with both extensions)
+      if (!file.name.endsWith('.ofocus') && !file.name.endsWith('.ofocus.zip')) {
+        console.log('Invalid file type:', file.name);
+        alert('Please select a valid .ofocus or .ofocus.zip file');
         return;
       }
 
@@ -175,7 +176,7 @@ export default function ImportScreen() {
             <>
               <input
                 type="file"
-                accept=".ofocus"
+                accept=".ofocus,.ofocus.zip,application/zip"
                 onChange={(e) => {
                   console.log('File input onChange triggered', e);
                   handleFileSelect(e);
@@ -217,7 +218,7 @@ export default function ImportScreen() {
             <>
               <input
                 type="file"
-                accept=".ofocus"
+                accept=".ofocus,.ofocus.zip,application/zip"
                 onChange={(e) => {
                   console.log('File input onChange triggered', e);
                   handleFileSelect(e);
