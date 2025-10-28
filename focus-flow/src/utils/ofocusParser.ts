@@ -184,7 +184,9 @@ export async function parseOFocusFile(file: File): Promise<{
 
     // Extract data from parsed XML
     const omnifocus = parsed.omnifocus || parsed;
-    console.log('OmniFocus object keys:', Object.keys(omnifocus));
+    const ofKeys = Object.keys(omnifocus);
+    console.log('OmniFocus object keys:', ofKeys);
+    console.log('OmniFocus keys detail:', ofKeys.map(k => `${k}: ${Array.isArray(omnifocus[k]) ? `Array(${omnifocus[k].length})` : typeof omnifocus[k]}`).join(', '));
 
     const tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[] = [];
     const projects: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>[] = [];
@@ -213,15 +215,38 @@ export async function parseOFocusFile(file: File): Promise<{
     };
 
     // Process projects
+    // In OmniFocus 4, check both 'project' and 'folder' fields
     const ofProjects = Array.isArray(omnifocus.project)
       ? omnifocus.project
       : omnifocus.project
       ? [omnifocus.project]
       : [];
 
+    // Also check folders (which might contain projects)
+    const ofFolders = Array.isArray(omnifocus.folder)
+      ? omnifocus.folder
+      : omnifocus.folder
+      ? [omnifocus.folder]
+      : [];
+
     console.log(`Found ${ofProjects.length} projects in XML`);
+    console.log(`Found ${ofFolders.length} folders in XML`);
+
     if (ofProjects.length > 0) {
       console.log('First project sample:', JSON.stringify(ofProjects[0], null, 2).substring(0, 500));
+    }
+    if (ofFolders.length > 0) {
+      console.log('First folder sample:', JSON.stringify(ofFolders[0], null, 2).substring(0, 500));
+    }
+
+    // Check if tasks have project references
+    const ofTasks = Array.isArray(omnifocus.task)
+      ? omnifocus.task
+      : omnifocus.task
+      ? [omnifocus.task]
+      : [];
+    if (ofTasks.length > 0) {
+      console.log('First task sample:', JSON.stringify(ofTasks[0], null, 2).substring(0, 500));
     }
 
     ofProjects.forEach((ofProject: OFProject) => {
