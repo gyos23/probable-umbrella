@@ -98,6 +98,69 @@ export async function parseOFocusFile(file: File): Promise<{
       }
     }
 
+    // Check if this is OmniFocus 4 format (has data/*.zip files)
+    if (!contentsFile) {
+      const dataZipFiles = fileList.filter(path => path.includes('/data/') && path.endsWith('.zip'));
+      const mainZipFile = fileList.find(path => path.includes('=') && path.endsWith('.zip') && !path.includes('/data/'));
+
+      if (dataZipFiles.length > 0 || mainZipFile) {
+        console.log('Detected OmniFocus 4 format with data files');
+        console.log(`Found ${dataZipFiles.length} data files and ${mainZipFile ? '1 main file' : 'no main file'}`);
+
+        // Try the main file first (e.g., 00000000000000=cn41lR1lc06+enVmjbsHUN7.zip)
+        if (mainZipFile) {
+          console.log(`Extracting main file: ${mainZipFile}`);
+          const mainFile = zip.file(mainZipFile);
+          if (mainFile) {
+            try {
+              const mainArrayBuffer = await mainFile.async('arraybuffer');
+              const mainZip = await JSZip.loadAsync(mainArrayBuffer);
+
+              console.log('Files in main data archive:');
+              mainZip.forEach((relativePath, file) => {
+                console.log(`  - ${relativePath}`);
+              });
+
+              // Look for XML or plist files
+              const xmlFile = Object.keys(mainZip.files).find(path => path.endsWith('.xml') || path.endsWith('.plist'));
+              if (xmlFile) {
+                console.log(`Found data file: ${xmlFile}`);
+                contentsFile = mainZip.file(xmlFile);
+              }
+            } catch (err) {
+              console.log(`Failed to extract main file: ${err.message}`);
+            }
+          }
+        }
+
+        // If still not found, try the first data file
+        if (!contentsFile && dataZipFiles.length > 0) {
+          console.log(`Trying first data file: ${dataZipFiles[0]}`);
+          const dataFile = zip.file(dataZipFiles[0]);
+          if (dataFile) {
+            try {
+              const dataArrayBuffer = await dataFile.async('arraybuffer');
+              const dataZip = await JSZip.loadAsync(dataArrayBuffer);
+
+              console.log('Files in data archive:');
+              dataZip.forEach((relativePath, file) => {
+                console.log(`  - ${relativePath}`);
+              });
+
+              // Look for XML or plist files
+              const xmlFile = Object.keys(dataZip.files).find(path => path.endsWith('.xml') || path.endsWith('.plist'));
+              if (xmlFile) {
+                console.log(`Found data file: ${xmlFile}`);
+                contentsFile = dataZip.file(xmlFile);
+              }
+            } catch (err) {
+              console.log(`Failed to extract data file: ${err.message}`);
+            }
+          }
+        }
+      }
+    }
+
     if (!contentsFile) {
       throw new Error(`Invalid .ofocus file: contents.xml not found. Available files: ${fileList.join(', ')}`);
     }
