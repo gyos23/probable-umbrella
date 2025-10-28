@@ -257,7 +257,7 @@ export async function parseOFocusFile(file: File): Promise<{
 
     console.log(`Processing ${allTasks.length} total items (projects + tasks)`);
 
-    // First pass: identify and create projects
+    // First pass: identify and create projects, and extract their child tasks
     allTasks.forEach((item: any) => {
       // If item has a 'project' field, it's a project
       if (item.project && typeof item.project === 'object') {
@@ -276,30 +276,48 @@ export async function parseOFocusFile(file: File): Promise<{
         if (item['@_id']) {
           projectMap.set(item['@_id'], projectName);
         }
+
+        // Process child tasks within this project
+        if (item.task) {
+          const projectTasks = Array.isArray(item.task) ? item.task : [item.task];
+          projectTasks.forEach((childTask: any) => {
+            // Recursively process child tasks (they might have their own children)
+            const processTask = (task: any, parentProjectName: string) => {
+              tasks.push(convertOFTask(task, parentProjectName));
+
+              // If this task has children, process them too
+              if (task.task) {
+                const childTasks = Array.isArray(task.task) ? task.task : [task.task];
+                childTasks.forEach((child: any) => processTask(child, parentProjectName));
+              }
+            };
+
+            processTask(childTask, projectName);
+          });
+        }
       }
     });
 
-    console.log(`Identified ${projects.length} projects`);
+    const tasksInProjects = tasks.length;
+    console.log(`Identified ${projects.length} projects with ${tasksInProjects} tasks`);
 
-    // Second pass: process regular tasks
+    // Second pass: process regular tasks (inbox items, orphaned tasks)
     allTasks.forEach((item: any) => {
       // Skip items that are projects
       if (item.project && typeof item.project === 'object') {
         return;
       }
 
-      // This is a regular task
+      // This is a regular task (inbox item or standalone task)
       const task = convertOFTask(item);
-
-      // Check if this task belongs to a project (has a parent that's a project)
-      // We'll need to match it up later based on task hierarchy
-
       tasks.push(task);
     });
 
-    console.log(`Processed ${tasks.length} regular tasks`);
+    const inboxTasks = tasks.length - tasksInProjects;
+    console.log(`Processed ${inboxTasks} inbox/standalone tasks`);
 
     // Also process tasks from folders if any
+    const tasksBeforeFolders = tasks.length;
     ofFolders.forEach((folder: any) => {
       if (folder.task) {
         const folderTasks = Array.isArray(folder.task) ? folder.task : [folder.task];
@@ -309,7 +327,12 @@ export async function parseOFocusFile(file: File): Promise<{
       }
     });
 
-    console.log(`Import complete: ${projects.length} projects, ${tasks.length} tasks`);
+    const folderTasks = tasks.length - tasksBeforeFolders;
+    if (folderTasks > 0) {
+      console.log(`Processed ${folderTasks} tasks from folders`);
+    }
+
+    console.log(`Import complete: ${projects.length} projects, ${tasks.length} total tasks (${tasksInProjects} in projects, ${inboxTasks} inbox items, ${folderTasks} from folders)`);
 
     return { tasks, projects };
   } catch (error) {
