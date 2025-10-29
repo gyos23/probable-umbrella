@@ -257,7 +257,7 @@ export async function parseOFocusFile(file: File): Promise<{
 
     console.log(`Processing ${allTasks.length} total items (projects + tasks)`);
 
-    // First pass: identify and create projects, and extract their child tasks
+    // First pass: identify projects and build ID map
     allTasks.forEach((item: any) => {
       // If item has a 'project' field, it's a project
       if (item.project && typeof item.project === 'object') {
@@ -272,61 +272,37 @@ export async function parseOFocusFile(file: File): Promise<{
 
         projects.push(project);
 
-        // Store mapping for task assignment later
+        // Store mapping: OmniFocus ID -> project name
         if (item['@_id']) {
           projectMap.set(item['@_id'], projectName);
-        }
-
-        // Debug: Check what the task field looks like
-        console.log(`Project "${projectName}" task field:`, typeof item.task, item.task ? (Array.isArray(item.task) ? `Array(${item.task.length})` : JSON.stringify(item.task).substring(0, 100)) : 'undefined');
-
-        // Process child tasks within this project
-        if (item.task && item.task !== '') {
-          const projectTasks = Array.isArray(item.task) ? item.task : [item.task];
-          console.log(`  Processing ${projectTasks.length} child tasks for project "${projectName}"`);
-          projectTasks.forEach((childTask: any) => {
-            // Recursively process child tasks (they might have their own children)
-            const processTask = (task: any, parentProjectName: string) => {
-              tasks.push(convertOFTask(task, parentProjectName));
-
-              // If this task has children, process them too
-              if (task.task && task.task !== '') {
-                const childTasks = Array.isArray(task.task) ? task.task : [task.task];
-                childTasks.forEach((child: any) => processTask(child, parentProjectName));
-              }
-            };
-
-            processTask(childTask, projectName);
-          });
         }
       }
     });
 
-    const tasksInProjects = tasks.length;
-    console.log(`Identified ${projects.length} projects with ${tasksInProjects} tasks`);
+    console.log(`Identified ${projects.length} projects`);
 
-    // Second pass: process regular tasks (inbox items, orphaned tasks)
-    let debuggedTask = false;
+    // Second pass: process regular tasks and link them to projects
     allTasks.forEach((item: any) => {
       // Skip items that are projects
       if (item.project && typeof item.project === 'object') {
         return;
       }
 
-      // Debug first non-project task to see its structure
-      if (!debuggedTask) {
-        console.log('Sample non-project task fields:', Object.keys(item).join(', '));
-        console.log('Sample task detail:', JSON.stringify(item, null, 2).substring(0, 800));
-        debuggedTask = true;
+      // Check if this task belongs to a project by looking at task.@_idref
+      let parentProjectName: string | undefined;
+      if (item.task && typeof item.task === 'object' && item.task['@_idref']) {
+        const parentId = item.task['@_idref'];
+        parentProjectName = projectMap.get(parentId);
       }
 
-      // This is a regular task (inbox item or standalone task)
-      const task = convertOFTask(item);
+      // Create the task with project linkage
+      const task = convertOFTask(item, parentProjectName);
       tasks.push(task);
     });
 
+    const tasksInProjects = tasks.filter(t => t.projectId).length;
     const inboxTasks = tasks.length - tasksInProjects;
-    console.log(`Processed ${inboxTasks} inbox/standalone tasks`);
+    console.log(`Processed ${tasks.length} tasks: ${tasksInProjects} in projects, ${inboxTasks} inbox items`);
 
     // Also process tasks from folders if any
     const tasksBeforeFolders = tasks.length;
@@ -344,7 +320,10 @@ export async function parseOFocusFile(file: File): Promise<{
       console.log(`Processed ${folderTasks} tasks from folders`);
     }
 
-    console.log(`Import complete: ${projects.length} projects, ${tasks.length} total tasks (${tasksInProjects} in projects, ${inboxTasks} inbox items, ${folderTasks} from folders)`);
+    // Recalculate final counts
+    const finalTasksInProjects = tasks.filter(t => t.projectId).length;
+    const finalInboxTasks = tasks.length - finalTasksInProjects;
+    console.log(`Import complete: ${projects.length} projects, ${tasks.length} total tasks (${finalTasksInProjects} in projects, ${finalInboxTasks} inbox items)`);
 
     return { tasks, projects };
   } catch (error) {
