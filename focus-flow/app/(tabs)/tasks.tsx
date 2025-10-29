@@ -34,6 +34,7 @@ export default function TasksScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title'>('date');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
     notes: '',
@@ -43,6 +44,9 @@ export default function TasksScreen() {
 
   const filteredTasks = tasks
     .filter((task) => {
+      // Hide completed filter
+      if (hideCompleted && task.status === 'completed') return false;
+
       // Status filter
       if (filterStatus !== 'all' && task.status !== filterStatus) return false;
 
@@ -129,6 +133,22 @@ export default function TasksScreen() {
           >
             <Text style={[styles.sortButtonText, { color: colors.text, ...typography.subheadline }]}>
               Sort: {sortBy === 'date' ? '📅 Date' : sortBy === 'priority' ? '⚡ Priority' : '🔤 Title'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor: hideCompleted ? colors.primary : colors.secondaryBackground,
+                borderColor: colors.separator,
+                marginLeft: 8,
+              }
+            ]}
+            onPress={() => setHideCompleted(!hideCompleted)}
+          >
+            <Text style={[styles.sortButtonText, { color: hideCompleted ? '#FFFFFF' : colors.text, ...typography.subheadline }]}>
+              {hideCompleted ? '👁️ Show All' : '👁️‍🗨️ Hide Done'}
             </Text>
           </TouchableOpacity>
 

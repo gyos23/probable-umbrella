@@ -77,7 +77,15 @@ export default function DashboardScreen() {
     return (
       <TouchableOpacity
         key={task.id}
-        style={[styles.taskRow, { backgroundColor: colors.background, borderColor: colors.separator }]}
+        style={[
+          styles.taskRow,
+          {
+            backgroundColor: isOverdue ? '#FFF5F5' : colors.background,
+            borderColor: isOverdue ? '#FEB2B2' : colors.separator,
+            borderLeftWidth: isOverdue ? 4 : 1,
+            borderLeftColor: isOverdue ? colors.red : colors.separator,
+          }
+        ]}
         onPress={() => router.push(`/task/${task.id}`)}
       >
         <View style={styles.taskInfo}>
@@ -151,7 +159,7 @@ export default function DashboardScreen() {
           {renderStatCard('Total Tasks', stats.totalTasks, colors.blue)}
           {renderStatCard('Completed', stats.completedTasks, colors.green)}
           {renderStatCard('In Progress', stats.inProgressTasks, colors.orange)}
-          {renderStatCard('Completion Rate', `${stats.completionRate}%`, colors.purple)}
+          {renderStatCard('Completion Rate (All Time)', `${stats.completionRate}%`, colors.purple)}
         </View>
 
         {/* Overdue Section */}
