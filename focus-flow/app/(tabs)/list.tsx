@@ -45,7 +45,7 @@ export default function ListViewScreen() {
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<TextInput>(null);
 
-  const visibleColumns = useMemo(() => columns.filter((c) => c.visible), [columns]);
+  const visibleColumns = useMemo(() => columns.filter((c) => c.visible && c.id !== 'title'), [columns]);
 
   const projectsWithTasks = useMemo(() => {
     const grouped = projects.map((project) => ({

@@ -37,6 +37,7 @@ export default function TaskDetailScreen() {
   const [projectId, setProjectId] = useState<string | undefined>(task?.projectId);
   const [showNewDependency, setShowNewDependency] = useState(false);
   const [newDependencyTitle, setNewDependencyTitle] = useState('');
+  const [dependencySearch, setDependencySearch] = useState('');
 
   useEffect(() => {
     if (task) {
@@ -410,9 +411,31 @@ export default function TaskDetailScreen() {
           <Text style={[styles.sectionSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
             Select tasks that must be completed before this task can start
           </Text>
+
+          {/* Search Box */}
+          <TextInput
+            style={[styles.dependencySearch, { color: colors.text, borderColor: colors.separator, backgroundColor: colors.secondaryBackground, ...typography.body }]}
+            placeholder="Search tasks..."
+            placeholderTextColor={colors.tertiaryText}
+            value={dependencySearch}
+            onChangeText={setDependencySearch}
+          />
+
           <View style={styles.dependenciesContainer}>
             {allTasks
-              .filter((t) => t.id !== id && t.status !== 'completed')
+              .filter((t) => {
+                if (t.id === id || t.status === 'completed') return false;
+                const isDependent = task.dependsOn.includes(t.id);
+                // Show selected dependencies always
+                if (isDependent) return true;
+                // If searching, show matches
+                if (dependencySearch.trim()) {
+                  return t.title.toLowerCase().includes(dependencySearch.toLowerCase());
+                }
+                // Otherwise show first 10 non-selected tasks
+                return false;
+              })
+              .slice(0, dependencySearch.trim() ? undefined : 20) // Limit to 20 when not searching
               .map((t) => {
                 const isDependent = task.dependsOn.includes(t.id);
                 return (
@@ -560,6 +583,12 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     marginBottom: 12,
     lineHeight: 18,
+  },
+  dependencySearch: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
   },
   optionsRow: {
     flexDirection: 'row',
