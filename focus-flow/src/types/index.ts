@@ -49,6 +49,7 @@ export interface Project {
   color: string;
   icon?: string;
   focusAreaId?: string;
+  parentProjectId?: string; // For nested project hierarchy
 
   // Dates
   startDate?: Date;

@@ -33,6 +33,7 @@ export default function ProjectDetailScreen() {
   const { colors, typography, spacing } = useTheme();
 
   const project = useTaskStore((state) => state.projects.find((p) => p.id === id));
+  const allProjects = useTaskStore((state) => state.projects);
   const tasks = useTaskStore((state) => state.tasks.filter((t) => t.projectId === id));
   const updateProject = useTaskStore((state) => state.updateProject);
   const deleteProject = useTaskStore((state) => state.deleteProject);
@@ -44,6 +45,7 @@ export default function ProjectDetailScreen() {
   const [status, setStatus] = useState<'todo' | 'in-progress' | 'completed' | 'deferred' | 'blocked'>(
     project?.status || 'todo'
   );
+  const [parentProjectId, setParentProjectId] = useState<string | undefined>(project?.parentProjectId);
   const [startDate, setStartDate] = useState<string | undefined>(
     project?.startDate ? (typeof project.startDate === 'string' ? project.startDate : project.startDate.toISOString()) : undefined
   );
@@ -57,6 +59,7 @@ export default function ProjectDetailScreen() {
       setDescription(project.description || '');
       setColor(project.color);
       setStatus(project.status);
+      setParentProjectId(project.parentProjectId);
       setStartDate(project.startDate ? (typeof project.startDate === 'string' ? project.startDate : project.startDate.toISOString()) : undefined);
       setTargetDate(project.targetDate ? (typeof project.targetDate === 'string' ? project.targetDate : project.targetDate.toISOString()) : undefined);
     }
@@ -81,6 +84,7 @@ export default function ProjectDetailScreen() {
       description: description.trim(),
       color,
       status,
+      parentProjectId,
       startDate,
       targetDate,
     });
@@ -179,6 +183,67 @@ export default function ProjectDetailScreen() {
                 {color === c && <Text style={styles.colorCheckmark}>✓</Text>}
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.optionsSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+            Parent Project
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
+            Make this a sub-project of another project
+          </Text>
+          <View style={styles.optionsRow}>
+            <TouchableOpacity
+              style={[
+                styles.optionChip,
+                {
+                  backgroundColor: !parentProjectId ? colors.primary : colors.secondaryBackground,
+                  borderColor: colors.separator,
+                },
+              ]}
+              onPress={() => setParentProjectId(undefined)}
+            >
+              <Text
+                style={[
+                  styles.optionChipText,
+                  {
+                    color: !parentProjectId ? '#FFFFFF' : colors.text,
+                    ...typography.subheadline,
+                  },
+                ]}
+              >
+                None
+              </Text>
+            </TouchableOpacity>
+            {allProjects
+              .filter((p) => p.id !== id)
+              .map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: parentProjectId === p.id ? colors.primary : colors.secondaryBackground,
+                      borderColor: colors.separator,
+                    },
+                  ]}
+                  onPress={() => setParentProjectId(p.id)}
+                >
+                  <View style={[styles.projectDot, { backgroundColor: p.color }]} />
+                  <Text
+                    style={[
+                      styles.optionChipText,
+                      {
+                        color: parentProjectId === p.id ? '#FFFFFF' : colors.text,
+                        ...typography.subheadline,
+                      },
+                    ]}
+                  >
+                    {p.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
           </View>
         </View>
 
@@ -360,6 +425,32 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: 12,
+  },
+  sectionSubtitle: {
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  optionChipText: {
+    fontWeight: '500',
+  },
+  projectDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   colorGrid: {
     flexDirection: 'row',
