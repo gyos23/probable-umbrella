@@ -87,6 +87,29 @@ export default function ProjectsScreen() {
     return true;
   });
 
+  // Organize projects into hierarchy with depth level
+  const organizeProjectHierarchy = () => {
+    const projectsWithDepth: Array<Project & { depth: number }> = [];
+
+    const addProjectWithChildren = (parentId: string | undefined, depth: number) => {
+      const children = filteredProjects
+        .filter((p) => p.parentProjectId === parentId)
+        .sort((a, b) => a.order - b.order);
+
+      children.forEach((project) => {
+        projectsWithDepth.push({ ...project, depth });
+        addProjectWithChildren(project.id, depth + 1);
+      });
+    };
+
+    // Start with root projects (no parent)
+    addProjectWithChildren(undefined, 0);
+
+    return projectsWithDepth;
+  };
+
+  const hierarchicalProjects = organizeProjectHierarchy();
+
   const getProjectCounts = () => {
     return {
       all: projects.length,
@@ -98,10 +121,11 @@ export default function ProjectsScreen() {
 
   const counts = getProjectCounts();
 
-  const renderProjectCard = ({ item }: { item: Project }) => {
+  const renderProjectCard = ({ item }: { item: Project & { depth: number } }) => {
     const taskCount = getProjectTaskCount(item.id);
     const completedCount = getProjectCompletedCount(item.id);
     const progress = taskCount > 0 ? (completedCount / taskCount) * 100 : 0;
+    const indentSize = item.depth * 24; // 24px per level
 
     return (
       <TouchableOpacity
@@ -110,6 +134,7 @@ export default function ProjectsScreen() {
           {
             backgroundColor: colors.card,
             borderColor: colors.separator,
+            marginLeft: indentSize,
           },
         ]}
         onPress={() => router.push(`/project/${item.id}`)}
@@ -118,6 +143,7 @@ export default function ProjectsScreen() {
         <View style={[styles.colorBar, { backgroundColor: item.color }]} />
         <View style={styles.projectContent}>
           <Text style={[styles.projectName, { color: colors.text, ...typography.headline }]}>
+            {item.depth > 0 && '└ '}
             {item.name}
           </Text>
           {item.description && (
@@ -193,7 +219,7 @@ export default function ProjectsScreen() {
       </View>
 
       <FlatList
-        data={filteredProjects}
+        data={hierarchicalProjects}
         keyExtractor={(item) => item.id}
         renderItem={renderProjectCard}
         contentContainerStyle={styles.listContent}

@@ -311,6 +311,100 @@ export default function TaskDetailScreen() {
 
         <View style={styles.optionsSection}>
           <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+            Quick Reschedule
+          </Text>
+          <View style={styles.rescheduleRow}>
+            <TouchableOpacity
+              style={[styles.rescheduleButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+              onPress={() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(9, 0, 0, 0);
+                updateTask(id!, { dueDate: tomorrow.toISOString() });
+              }}
+            >
+              <Text style={[styles.rescheduleEmoji]}>📅</Text>
+              <Text style={[styles.rescheduleLabel, { color: colors.text, ...typography.caption1 }]}>
+                Tomorrow
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.rescheduleButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+              onPress={() => {
+                const in3Days = new Date();
+                in3Days.setDate(in3Days.getDate() + 3);
+                in3Days.setHours(9, 0, 0, 0);
+                updateTask(id!, { dueDate: in3Days.toISOString() });
+              }}
+            >
+              <Text style={[styles.rescheduleEmoji]}>📆</Text>
+              <Text style={[styles.rescheduleLabel, { color: colors.text, ...typography.caption1 }]}>
+                In 3 Days
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.rescheduleButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+              onPress={() => {
+                const nextWeek = new Date();
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                nextWeek.setHours(9, 0, 0, 0);
+                updateTask(id!, { dueDate: nextWeek.toISOString() });
+              }}
+            >
+              <Text style={[styles.rescheduleEmoji]}>📅</Text>
+              <Text style={[styles.rescheduleLabel, { color: colors.text, ...typography.caption1 }]}>
+                Next Week
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {task.dueDate && (
+            <View style={styles.rescheduleRow}>
+              <TouchableOpacity
+                style={[styles.rescheduleButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+                onPress={() => {
+                  const currentDate = new Date(task.dueDate!);
+                  currentDate.setDate(currentDate.getDate() + 1);
+                  updateTask(id!, { dueDate: currentDate.toISOString() });
+                }}
+              >
+                <Text style={[styles.rescheduleEmoji]}>➕</Text>
+                <Text style={[styles.rescheduleLabel, { color: colors.text, ...typography.caption1 }]}>
+                  +1 Day
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.rescheduleButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+                onPress={() => {
+                  const currentDate = new Date(task.dueDate!);
+                  currentDate.setDate(currentDate.getDate() - 1);
+                  updateTask(id!, { dueDate: currentDate.toISOString() });
+                }}
+              >
+                <Text style={[styles.rescheduleEmoji]}>➖</Text>
+                <Text style={[styles.rescheduleLabel, { color: colors.text, ...typography.caption1 }]}>
+                  -1 Day
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.rescheduleButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+                onPress={() => updateTask(id!, { dueDate: undefined })}
+              >
+                <Text style={[styles.rescheduleEmoji]}>🗑️</Text>
+                <Text style={[styles.rescheduleLabel, { color: colors.text, ...typography.caption1 }]}>
+                  Clear
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.optionsSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
             Dependencies
           </Text>
           <Text style={[styles.sectionSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
@@ -559,6 +653,28 @@ const styles = StyleSheet.create({
   clearButton: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  rescheduleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  rescheduleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  rescheduleEmoji: {
+    fontSize: 20,
+  },
+  rescheduleLabel: {
+    fontWeight: '600',
+    textAlign: 'center',
   },
   dangerSection: {
     marginTop: 32,

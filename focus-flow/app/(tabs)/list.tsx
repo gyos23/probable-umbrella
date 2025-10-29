@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
+import React, { useState, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
-import { Task, Project } from '../../src/types';
+import { Task, Project, TaskStatus, TaskPriority } from '../../src/types';
 import { formatDate, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, addDays, subDays, min, max } from '../../src/utils/dateUtils';
 
 type ViewMode = 'list' | 'gantt';
@@ -41,6 +41,9 @@ export default function ListViewScreen() {
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{ taskId: string; columnId: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<TextInput>(null);
 
   const visibleColumns = useMemo(() => columns.filter((c) => c.visible), [columns]);
 
@@ -78,6 +81,45 @@ export default function ListViewScreen() {
         col.id === columnId ? { ...col, visible: !col.visible } : col
       )
     );
+  };
+
+  const startEditing = (taskId: string, columnId: string, currentValue: string) => {
+    // Only allow editing certain fields
+    if (['title', 'progress'].includes(columnId)) {
+      setEditingCell({ taskId, columnId });
+      setEditValue(currentValue);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const saveEdit = (taskId: string, columnId: string) => {
+    if (!editValue.trim() && columnId === 'title') {
+      setEditingCell(null);
+      return;
+    }
+
+    const updates: Partial<Task> = {};
+
+    if (columnId === 'title') {
+      updates.title = editValue.trim();
+    } else if (columnId === 'progress') {
+      const numValue = parseInt(editValue);
+      if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+        updates.progress = numValue;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateTask(taskId, updates);
+    }
+
+    setEditingCell(null);
+    setEditValue('');
+  };
+
+  const cancelEdit = () => {
+    setEditingCell(null);
+    setEditValue('');
   };
 
   const getCellValue = (task: Task, columnId: string): string => {
@@ -254,49 +296,92 @@ export default function ListViewScreen() {
     </View>
   );
 
-  const renderTaskRow = (task: Task, isLast: boolean) => (
-    <TouchableOpacity
-      key={task.id}
-      style={[
-        styles.taskRow,
-        {
-          backgroundColor: colors.background,
-          borderBottomColor: colors.separator,
-          borderBottomWidth: isLast ? 0 : 0.5,
-        },
-      ]}
-      onPress={() => router.push(`/task/${task.id}`)}
-    >
-      <View style={[styles.taskTitleCell, { width: 250, borderRightColor: colors.separator }]}>
-        <Text style={[styles.taskTitle, { color: colors.text, ...typography.body }]} numberOfLines={1}>
-          {task.title}
-        </Text>
-      </View>
-      {visibleColumns.map((column) => {
-        const value = getCellValue(task, column.id);
-        let textColor = colors.secondaryText;
+  const renderTaskRow = (task: Task, isLast: boolean) => {
+    const isEditingTitle = editingCell?.taskId === task.id && editingCell?.columnId === 'title';
 
-        if (column.id === 'status') {
-          textColor = getStatusColor(value);
-        } else if (column.id === 'priority') {
-          textColor = getPriorityColor(value);
-        } else if (column.id === 'progress') {
-          textColor = colors.text;
-        }
-
-        return (
-          <View
-            key={column.id}
-            style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
-          >
-            <Text style={[styles.cellText, { color: textColor, ...typography.caption1 }]} numberOfLines={1}>
-              {value}
+    return (
+      <View
+        key={task.id}
+        style={[
+          styles.taskRow,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.separator,
+            borderBottomWidth: isLast ? 0 : 0.5,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.taskTitleCell, { width: 250, borderRightColor: colors.separator }]}
+          onPress={() => {
+            if (!isEditingTitle) {
+              startEditing(task.id, 'title', task.title);
+            }
+          }}
+          onLongPress={() => router.push(`/task/${task.id}`)}
+        >
+          {isEditingTitle ? (
+            <TextInput
+              ref={inputRef}
+              style={[styles.editInput, { color: colors.text, ...typography.body }]}
+              value={editValue}
+              onChangeText={setEditValue}
+              onBlur={() => saveEdit(task.id, 'title')}
+              onSubmitEditing={() => saveEdit(task.id, 'title')}
+              autoFocus
+            />
+          ) : (
+            <Text style={[styles.taskTitle, { color: colors.text, ...typography.body }]} numberOfLines={1}>
+              {task.title}
             </Text>
-          </View>
-        );
-      })}
-    </TouchableOpacity>
-  );
+          )}
+        </TouchableOpacity>
+        {visibleColumns.map((column) => {
+          const value = getCellValue(task, column.id);
+          const isEditing = editingCell?.taskId === task.id && editingCell?.columnId === column.id;
+          let textColor = colors.secondaryText;
+
+          if (column.id === 'status') {
+            textColor = getStatusColor(value);
+          } else if (column.id === 'priority') {
+            textColor = getPriorityColor(value);
+          } else if (column.id === 'progress') {
+            textColor = colors.text;
+          }
+
+          return (
+            <TouchableOpacity
+              key={column.id}
+              style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
+              onPress={() => {
+                if (!isEditing && column.id === 'progress') {
+                  startEditing(task.id, column.id, value.replace('%', ''));
+                }
+              }}
+              onLongPress={() => router.push(`/task/${task.id}`)}
+            >
+              {isEditing ? (
+                <TextInput
+                  ref={inputRef}
+                  style={[styles.editInput, { color: textColor, ...typography.caption1 }]}
+                  value={editValue}
+                  onChangeText={setEditValue}
+                  onBlur={() => saveEdit(task.id, column.id)}
+                  onSubmitEditing={() => saveEdit(task.id, column.id)}
+                  keyboardType={column.id === 'progress' ? 'numeric' : 'default'}
+                  autoFocus
+                />
+              ) : (
+                <Text style={[styles.cellText, { color: textColor, ...typography.caption1 }]} numberOfLines={1}>
+                  {value}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   const renderProjectGroup = (item: { project: Project; tasks: Task[] }, groupIndex: number) => (
     <View key={item.project.id} style={styles.projectGroup}>
@@ -675,6 +760,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cellText: {
+    fontWeight: '500',
+  },
+  editInput: {
+    flex: 1,
+    padding: 0,
+    margin: 0,
     fontWeight: '500',
   },
   // View Toggle Styles
