@@ -38,6 +38,7 @@ export default function ProjectsScreen() {
   const addProject = useTaskStore((state) => state.addProject);
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'active' | 'backlog' | 'archive' | 'all'>('active');
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
@@ -67,6 +68,35 @@ export default function ProjectsScreen() {
   const getProjectCompletedCount = (projectId: string) => {
     return tasks.filter((task) => task.projectId === projectId && task.status === 'completed').length;
   };
+
+  const filteredProjects = projects.filter((project) => {
+    if (filterStatus === 'all') return true;
+
+    if (filterStatus === 'active') {
+      return project.status === 'in-progress' || project.status === 'todo';
+    }
+
+    if (filterStatus === 'backlog') {
+      return project.status === 'deferred' || project.status === 'blocked';
+    }
+
+    if (filterStatus === 'archive') {
+      return project.status === 'completed';
+    }
+
+    return true;
+  });
+
+  const getProjectCounts = () => {
+    return {
+      all: projects.length,
+      active: projects.filter((p) => p.status === 'in-progress' || p.status === 'todo').length,
+      backlog: projects.filter((p) => p.status === 'deferred' || p.status === 'blocked').length,
+      archive: projects.filter((p) => p.status === 'completed').length,
+    };
+  };
+
+  const counts = getProjectCounts();
 
   const renderProjectCard = ({ item }: { item: Project }) => {
     const taskCount = getProjectTaskCount(item.id);
@@ -120,8 +150,50 @@ export default function ProjectsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: colors.text, ...typography.largeTitle }]}>
+          Projects
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContainer}
+        >
+          {(['active', 'backlog', 'archive', 'all'] as const).map((status) => (
+            <TouchableOpacity
+              key={status}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor:
+                    filterStatus === status ? colors.primary : colors.secondaryBackground,
+                  borderColor: colors.separator,
+                },
+              ]}
+              onPress={() => setFilterStatus(status)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  {
+                    color: filterStatus === status ? '#FFFFFF' : colors.text,
+                    ...typography.subheadline,
+                  },
+                ]}
+              >
+                {status === 'active' && '🔥 Active'}
+                {status === 'backlog' && '📋 Backlog'}
+                {status === 'archive' && '📦 Archive'}
+                {status === 'all' && '📁 All'}
+                {' '}({counts[status]})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       <FlatList
-        data={projects}
+        data={filteredProjects}
         keyExtractor={(item) => item.id}
         renderItem={renderProjectCard}
         contentContainerStyle={styles.listContent}
@@ -251,6 +323,29 @@ export default function ProjectsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    marginBottom: 12,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   listContent: {
     paddingVertical: 8,
