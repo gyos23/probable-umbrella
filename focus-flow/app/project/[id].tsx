@@ -40,12 +40,16 @@ export default function ProjectDetailScreen() {
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
   const [color, setColor] = useState(project?.color || PROJECT_COLORS[0]);
+  const [status, setStatus] = useState<'todo' | 'in-progress' | 'completed' | 'deferred' | 'blocked'>(
+    project?.status || 'todo'
+  );
 
   useEffect(() => {
     if (project) {
       setName(project.name);
       setDescription(project.description || '');
       setColor(project.color);
+      setStatus(project.status);
     }
   }, [project]);
 
@@ -67,6 +71,7 @@ export default function ProjectDetailScreen() {
       name: name.trim(),
       description: description.trim(),
       color,
+      status,
     });
 
     router.back();
@@ -163,6 +168,63 @@ export default function ProjectDetailScreen() {
                 {color === c && <Text style={styles.colorCheckmark}>✓</Text>}
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.optionsSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+            Status
+          </Text>
+          <View style={styles.statusGrid}>
+            <TouchableOpacity
+              style={[
+                styles.statusOption,
+                { backgroundColor: colors.secondaryBackground, borderColor: colors.separator },
+                (status === 'todo' || status === 'in-progress') && styles.statusOptionSelected,
+                (status === 'todo' || status === 'in-progress') && { borderColor: colors.orange },
+              ]}
+              onPress={() => setStatus('in-progress')}
+            >
+              <Text style={styles.statusEmoji}>🔥</Text>
+              <Text style={[styles.statusLabel, { color: colors.text, ...typography.caption1 }]}>
+                Active
+              </Text>
+              {(status === 'todo' || status === 'in-progress') && (
+                <Text style={styles.statusCheckmark}>✓</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.statusOption,
+                { backgroundColor: colors.secondaryBackground, borderColor: colors.separator },
+                status === 'deferred' && styles.statusOptionSelected,
+                status === 'deferred' && { borderColor: colors.blue },
+              ]}
+              onPress={() => setStatus('deferred')}
+            >
+              <Text style={styles.statusEmoji}>📋</Text>
+              <Text style={[styles.statusLabel, { color: colors.text, ...typography.caption1 }]}>
+                Backlog
+              </Text>
+              {status === 'deferred' && <Text style={styles.statusCheckmark}>✓</Text>}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.statusOption,
+                { backgroundColor: colors.secondaryBackground, borderColor: colors.separator },
+                status === 'completed' && styles.statusOptionSelected,
+                status === 'completed' && { borderColor: colors.green },
+              ]}
+              onPress={() => setStatus('completed')}
+            >
+              <Text style={styles.statusEmoji}>📦</Text>
+              <Text style={[styles.statusLabel, { color: colors.text, ...typography.caption1 }]}>
+                Archive
+              </Text>
+              {status === 'completed' && <Text style={styles.statusCheckmark}>✓</Text>}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -294,6 +356,42 @@ const styles = StyleSheet.create({
   colorCheckmark: {
     color: '#FFFFFF',
     fontSize: 24,
+    fontWeight: '700',
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statusOption: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  statusOptionSelected: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusEmoji: {
+    fontSize: 28,
+  },
+  statusLabel: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  statusCheckmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    color: '#34C759',
+    fontSize: 18,
     fontWeight: '700',
   },
   statsSection: {
