@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
@@ -43,6 +43,7 @@ export default function ListViewScreen() {
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ taskId: string; columnId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [showPickerModal, setShowPickerModal] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const visibleColumns = useMemo(() => columns.filter((c) => c.visible && c.id !== 'title'), [columns]);
@@ -83,30 +84,44 @@ export default function ListViewScreen() {
     );
   };
 
-  const startEditing = (taskId: string, columnId: string, currentValue: string) => {
-    // Only allow editing certain fields
-    if (['title', 'progress'].includes(columnId)) {
+  const startEditing = (taskId: string, columnId: string, currentValue: string, task?: Task) => {
+    // Allow editing: title, progress, status, priority, dueDate
+    if (['title', 'progress', 'status', 'priority', 'dueDate'].includes(columnId)) {
       setEditingCell({ taskId, columnId });
       setEditValue(currentValue);
-      setTimeout(() => inputRef.current?.focus(), 100);
+
+      if (['status', 'priority'].includes(columnId)) {
+        setShowPickerModal(true);
+      } else {
+        setTimeout(() => inputRef.current?.focus(), 100);
+      }
     }
   };
 
-  const saveEdit = (taskId: string, columnId: string) => {
-    if (!editValue.trim() && columnId === 'title') {
+  const saveEdit = (taskId: string, columnId: string, value?: string) => {
+    const valueToSave = value || editValue;
+
+    if (!valueToSave.trim() && columnId === 'title') {
       setEditingCell(null);
+      setShowPickerModal(false);
       return;
     }
 
     const updates: Partial<Task> = {};
 
     if (columnId === 'title') {
-      updates.title = editValue.trim();
+      updates.title = valueToSave.trim();
     } else if (columnId === 'progress') {
-      const numValue = parseInt(editValue);
+      const numValue = parseInt(valueToSave);
       if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
         updates.progress = numValue;
       }
+    } else if (columnId === 'status') {
+      updates.status = valueToSave.toLowerCase() as TaskStatus;
+    } else if (columnId === 'priority') {
+      updates.priority = valueToSave.toLowerCase() as TaskPriority;
+    } else if (columnId === 'dueDate') {
+      updates.dueDate = valueToSave;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -115,11 +130,13 @@ export default function ListViewScreen() {
 
     setEditingCell(null);
     setEditValue('');
+    setShowPickerModal(false);
   };
 
   const cancelEdit = () => {
     setEditingCell(null);
     setEditValue('');
+    setShowPickerModal(false);
   };
 
   const getCellValue = (task: Task, columnId: string): string => {
@@ -354,23 +371,46 @@ export default function ListViewScreen() {
               key={column.id}
               style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
               onPress={() => {
-                if (!isEditing && column.id === 'progress') {
-                  startEditing(task.id, column.id, value.replace('%', ''));
+                if (!isEditing && ['progress', 'status', 'priority', 'dueDate'].includes(column.id)) {
+                  const cleanValue = column.id === 'progress' ? value.replace('%', '') : value;
+                  startEditing(task.id, column.id, cleanValue, task);
                 }
               }}
               onLongPress={() => router.push(`/task/${task.id}`)}
             >
-              {isEditing ? (
-                <TextInput
-                  ref={inputRef}
-                  style={[styles.editInput, { color: textColor, ...typography.caption1 }]}
-                  value={editValue}
-                  onChangeText={setEditValue}
-                  onBlur={() => saveEdit(task.id, column.id)}
-                  onSubmitEditing={() => saveEdit(task.id, column.id)}
-                  keyboardType={column.id === 'progress' ? 'numeric' : 'default'}
-                  autoFocus
-                />
+              {isEditing && !['status', 'priority'].includes(column.id) ? (
+                column.id === 'dueDate' && Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={editValue && editValue !== '—' ? new Date(editValue).toISOString().split('T')[0] : ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const newDate = new Date(e.target.value);
+                        saveEdit(task.id, column.id, newDate.toISOString());
+                      }
+                    }}
+                    style={{
+                      padding: 4,
+                      fontSize: 12,
+                      borderRadius: 4,
+                      border: `1px solid ${colors.separator}`,
+                      backgroundColor: colors.secondaryBackground,
+                      color: colors.text,
+                      width: '100%',
+                    }}
+                  />
+                ) : (
+                  <TextInput
+                    ref={inputRef}
+                    style={[styles.editInput, { color: textColor, ...typography.caption1 }]}
+                    value={editValue}
+                    onChangeText={setEditValue}
+                    onBlur={() => saveEdit(task.id, column.id)}
+                    onSubmitEditing={() => saveEdit(task.id, column.id)}
+                    keyboardType={column.id === 'progress' ? 'numeric' : 'default'}
+                    autoFocus
+                  />
+                )
               ) : (
                 <Text style={[styles.cellText, { color: textColor, ...typography.caption1 }]} numberOfLines={1}>
                   {value}
@@ -653,6 +693,63 @@ export default function ListViewScreen() {
           )}
         </>
       )}
+
+      {/* Picker Modal for Status/Priority */}
+      {showPickerModal && editingCell && (
+        <Modal
+          visible={showPickerModal}
+          transparent
+          animationType="fade"
+          onRequestClose={cancelEdit}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={cancelEdit}
+          >
+            <View
+              style={[styles.pickerModal, { backgroundColor: colors.card }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[styles.pickerTitle, { color: colors.text, ...typography.headline }]}>
+                Select {editingCell.columnId === 'status' ? 'Status' : 'Priority'}
+              </Text>
+
+              {editingCell.columnId === 'status' && (
+                <>
+                  {(['todo', 'in-progress', 'completed', 'blocked', 'deferred'] as TaskStatus[]).map((s) => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.pickerOption, { backgroundColor: colors.secondaryBackground }]}
+                      onPress={() => saveEdit(editingCell.taskId, editingCell.columnId, s)}
+                    >
+                      <Text style={[styles.pickerOptionText, { color: getStatusColor(s.charAt(0).toUpperCase() + s.slice(1)), ...typography.body }]}>
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+
+              {editingCell.columnId === 'priority' && (
+                <>
+                  {(['low', 'medium', 'high', 'critical'] as TaskPriority[]).map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.pickerOption, { backgroundColor: colors.secondaryBackground }]}
+                      onPress={() => saveEdit(editingCell.taskId, editingCell.columnId, p)}
+                    >
+                      <Text style={[styles.pickerOptionText, { color: getPriorityColor(p.charAt(0).toUpperCase() + p.slice(1)), ...typography.body }]}>
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -890,5 +987,35 @@ const styles = StyleSheet.create({
     right: 0,
     borderTopRightRadius: 6,
     borderBottomRightRadius: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pickerModal: {
+    width: '100%',
+    maxWidth: 300,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  pickerTitle: {
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  pickerOption: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  pickerOptionText: {
+    fontWeight: '500',
   },
 });
