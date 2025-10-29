@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
+import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, Project } from '../../src/types';
 import { formatDate, isToday, differenceInDays } from '../../src/utils/dateUtils';
@@ -12,6 +13,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useTaskStore((state) => state.projects);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -279,6 +281,18 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setShowQuickAdd(true)}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
+
+      <QuickAddTask
+        visible={showQuickAdd}
+        onClose={() => setShowQuickAdd(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -411,5 +425,25 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontWeight: '300',
   },
 });

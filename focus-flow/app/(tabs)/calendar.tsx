@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
+import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { useTheme } from '../../src/theme/useTheme';
 import {
   startOfMonth,
@@ -25,6 +26,7 @@ export default function CalendarScreen() {
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth));
@@ -171,6 +173,19 @@ export default function CalendarScreen() {
           }
         />
       </View>
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setShowQuickAdd(true)}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
+
+      <QuickAddTask
+        visible={showQuickAdd}
+        onClose={() => setShowQuickAdd(false)}
+        defaultDate={selectedDate.toISOString()}
+      />
     </SafeAreaView>
   );
 }
@@ -249,5 +264,25 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontWeight: '300',
   },
 });

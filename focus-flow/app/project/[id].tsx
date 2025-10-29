@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { TaskRow } from '../../src/components/TaskRow';
+import { DatePicker } from '../../src/components/DatePicker';
 
 const PROJECT_COLORS = [
   '#FF3B30',
@@ -43,6 +44,12 @@ export default function ProjectDetailScreen() {
   const [status, setStatus] = useState<'todo' | 'in-progress' | 'completed' | 'deferred' | 'blocked'>(
     project?.status || 'todo'
   );
+  const [startDate, setStartDate] = useState<string | undefined>(
+    project?.startDate ? (typeof project.startDate === 'string' ? project.startDate : project.startDate.toISOString()) : undefined
+  );
+  const [targetDate, setTargetDate] = useState<string | undefined>(
+    project?.targetDate ? (typeof project.targetDate === 'string' ? project.targetDate : project.targetDate.toISOString()) : undefined
+  );
 
   useEffect(() => {
     if (project) {
@@ -50,6 +57,8 @@ export default function ProjectDetailScreen() {
       setDescription(project.description || '');
       setColor(project.color);
       setStatus(project.status);
+      setStartDate(project.startDate ? (typeof project.startDate === 'string' ? project.startDate : project.startDate.toISOString()) : undefined);
+      setTargetDate(project.targetDate ? (typeof project.targetDate === 'string' ? project.targetDate : project.targetDate.toISOString()) : undefined);
     }
   }, [project]);
 
@@ -72,6 +81,8 @@ export default function ProjectDetailScreen() {
       description: description.trim(),
       color,
       status,
+      startDate,
+      targetDate,
     });
 
     router.back();
@@ -226,6 +237,24 @@ export default function ProjectDetailScreen() {
               {status === 'completed' && <Text style={styles.statusCheckmark}>✓</Text>}
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.optionsSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+            Timeline
+          </Text>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={(date) => setStartDate(date)}
+            placeholder="No start date"
+          />
+          <DatePicker
+            label="Target Date"
+            value={targetDate}
+            onChange={(date) => setTargetDate(date)}
+            placeholder="No target date"
+          />
         </View>
 
         <View style={styles.statsSection}>
