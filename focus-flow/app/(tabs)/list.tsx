@@ -37,6 +37,8 @@ export default function ListViewScreen() {
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useTaskStore((state) => state.projects);
   const updateTask = useTaskStore((state) => state.updateTask);
+  const addDependency = useTaskStore((state) => state.addDependency);
+  const removeDependency = useTaskStore((state) => state.removeDependency);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
@@ -85,12 +87,12 @@ export default function ListViewScreen() {
   };
 
   const startEditing = (taskId: string, columnId: string, currentValue: string, task?: Task) => {
-    // Allow editing: title, progress, status, priority, dueDate
-    if (['title', 'progress', 'status', 'priority', 'dueDate'].includes(columnId)) {
+    // Allow editing: title, progress, status, priority, dueDate, dependencies
+    if (['title', 'progress', 'status', 'priority', 'dueDate', 'dependencies'].includes(columnId)) {
       setEditingCell({ taskId, columnId });
       setEditValue(currentValue);
 
-      if (['status', 'priority'].includes(columnId)) {
+      if (['status', 'priority', 'dependencies'].includes(columnId)) {
         setShowPickerModal(true);
       } else {
         setTimeout(() => inputRef.current?.focus(), 100);
@@ -137,6 +139,17 @@ export default function ListViewScreen() {
     setEditingCell(null);
     setEditValue('');
     setShowPickerModal(false);
+  };
+
+  const toggleDependency = (taskId: string, dependencyId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    if (task.dependsOn.includes(dependencyId)) {
+      removeDependency(taskId, dependencyId);
+    } else {
+      addDependency(taskId, dependencyId);
+    }
   };
 
   const getCellValue = (task: Task, columnId: string): string => {
@@ -371,14 +384,14 @@ export default function ListViewScreen() {
               key={column.id}
               style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
               onPress={() => {
-                if (!isEditing && ['progress', 'status', 'priority', 'dueDate'].includes(column.id)) {
+                if (!isEditing && ['progress', 'status', 'priority', 'dueDate', 'dependencies'].includes(column.id)) {
                   const cleanValue = column.id === 'progress' ? value.replace('%', '') : value;
                   startEditing(task.id, column.id, cleanValue, task);
                 }
               }}
               onLongPress={() => router.push(`/task/${task.id}`)}
             >
-              {isEditing && !['status', 'priority'].includes(column.id) ? (
+              {isEditing && !['status', 'priority', 'dependencies'].includes(column.id) ? (
                 column.id === 'dueDate' && Platform.OS === 'web' ? (
                   <input
                     type="date"
@@ -711,9 +724,16 @@ export default function ListViewScreen() {
               style={[styles.pickerModal, { backgroundColor: colors.card }]}
               onStartShouldSetResponder={() => true}
             >
-              <Text style={[styles.pickerTitle, { color: colors.text, ...typography.headline }]}>
-                Select {editingCell.columnId === 'status' ? 'Status' : 'Priority'}
-              </Text>
+              <View style={styles.pickerHeader}>
+                <Text style={[styles.pickerTitle, { color: colors.text, ...typography.headline }]}>
+                  {editingCell.columnId === 'status' && 'Select Status'}
+                  {editingCell.columnId === 'priority' && 'Select Priority'}
+                  {editingCell.columnId === 'dependencies' && 'Select Dependencies'}
+                </Text>
+                <TouchableOpacity onPress={cancelEdit}>
+                  <Text style={[styles.doneButton, { color: colors.primary, ...typography.body }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
 
               {editingCell.columnId === 'status' && (
                 <>
@@ -745,6 +765,41 @@ export default function ListViewScreen() {
                     </TouchableOpacity>
                   ))}
                 </>
+              )}
+
+              {editingCell.columnId === 'dependencies' && (
+                <ScrollView style={styles.dependenciesScroll}>
+                  {tasks
+                    .filter((t) => t.id !== editingCell.taskId && t.status !== 'completed')
+                    .map((t) => {
+                      const currentTask = tasks.find((task) => task.id === editingCell.taskId);
+                      const isDependent = currentTask?.dependsOn.includes(t.id);
+                      return (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={[
+                            styles.dependencyOption,
+                            {
+                              backgroundColor: isDependent ? colors.primary : colors.secondaryBackground,
+                              borderColor: colors.separator,
+                            },
+                          ]}
+                          onPress={() => toggleDependency(editingCell.taskId, t.id)}
+                        >
+                          <Text
+                            style={[
+                              styles.dependencyOptionText,
+                              { color: isDependent ? '#FFFFFF' : colors.text, ...typography.body },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {t.title}
+                          </Text>
+                          {isDependent && <Text style={styles.checkmark}>✓</Text>}
+                        </TouchableOpacity>
+                      );
+                    })}
+                </ScrollView>
               )}
             </View>
           </TouchableOpacity>
@@ -997,7 +1052,8 @@ const styles = StyleSheet.create({
   },
   pickerModal: {
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 400,
+    maxHeight: '80%',
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -1006,9 +1062,17 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   pickerTitle: {
     fontWeight: '600',
-    marginBottom: 16,
+  },
+  doneButton: {
+    fontWeight: '600',
   },
   pickerOption: {
     padding: 16,
@@ -1017,5 +1081,26 @@ const styles = StyleSheet.create({
   },
   pickerOptionText: {
     fontWeight: '500',
+  },
+  dependenciesScroll: {
+    maxHeight: 400,
+  },
+  dependencyOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  dependencyOptionText: {
+    flex: 1,
+    fontWeight: '500',
+  },
+  checkmark: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    marginLeft: 8,
   },
 });
