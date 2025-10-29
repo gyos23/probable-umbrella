@@ -44,7 +44,9 @@ export default function DashboardScreen() {
       return dateA.getTime() - dateB.getTime();
     });
 
-    const activeProjects = projects.filter((p) => p.status !== 'completed');
+    const activeProjects = projects.filter(
+      (p) => p.status === 'in-progress' || p.status === 'todo'
+    );
 
     return {
       totalTasks,
