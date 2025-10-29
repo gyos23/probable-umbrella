@@ -46,6 +46,9 @@ export default function ListViewScreen() {
   const [editingCell, setEditingCell] = useState<{ taskId: string; columnId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [showPickerModal, setShowPickerModal] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [showBulkPriorityModal, setShowBulkPriorityModal] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const visibleColumns = useMemo(() => columns.filter((c) => c.visible && c.id !== 'title'), [columns]);
@@ -149,6 +152,75 @@ export default function ListViewScreen() {
       removeDependency(taskId, dependencyId);
     } else {
       addDependency(taskId, dependencyId);
+    }
+  };
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTasks.size === tasks.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(tasks.map((t) => t.id)));
+    }
+  };
+
+  const bulkUpdateStatus = (status: TaskStatus) => {
+    selectedTasks.forEach((taskId) => {
+      updateTask(taskId, { status });
+    });
+    setSelectedTasks(new Set());
+    setShowBulkStatusModal(false);
+  };
+
+  const bulkUpdatePriority = (priority: TaskPriority) => {
+    selectedTasks.forEach((taskId) => {
+      updateTask(taskId, { priority });
+    });
+    setSelectedTasks(new Set());
+    setShowBulkPriorityModal(false);
+  };
+
+  const bulkDelete = () => {
+    if (Platform.OS === 'web') {
+      if (confirm(`Delete ${selectedTasks.size} tasks?`)) {
+        const deleteTask = useTaskStore.getState().deleteTask;
+        selectedTasks.forEach((taskId) => {
+          deleteTask(taskId);
+        });
+        setSelectedTasks(new Set());
+        setShowBulkActions(false);
+      }
+    } else {
+      Alert.alert(
+        'Delete Tasks',
+        `Delete ${selectedTasks.size} tasks?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              const deleteTask = useTaskStore.getState().deleteTask;
+              selectedTasks.forEach((taskId) => {
+                deleteTask(taskId);
+              });
+              setSelectedTasks(new Set());
+              setShowBulkActions(false);
+            },
+          },
+        ]
+      );
     }
   };
 
@@ -310,6 +382,16 @@ export default function ListViewScreen() {
 
   const renderHeader = () => (
     <View style={[styles.headerRow, { backgroundColor: colors.secondaryBackground, borderBottomColor: colors.separator }]}>
+      <TouchableOpacity
+        style={[styles.checkboxColumn, { borderRightColor: colors.separator }]}
+        onPress={toggleSelectAll}
+      >
+        <View style={[styles.checkbox, { borderColor: colors.separator }]}>
+          {selectedTasks.size > 0 && selectedTasks.size === tasks.length && (
+            <Text style={styles.checkboxCheck}>✓</Text>
+          )}
+        </View>
+      </TouchableOpacity>
       <View style={[styles.projectColumn, { width: 250, borderRightColor: colors.separator }]}>
         <Text style={[styles.headerText, { color: colors.text, ...typography.headline }]}>Project / Task</Text>
       </View>
@@ -335,12 +417,20 @@ export default function ListViewScreen() {
         style={[
           styles.taskRow,
           {
-            backgroundColor: colors.background,
+            backgroundColor: selectedTasks.has(task.id) ? colors.tertiaryBackground : colors.background,
             borderBottomColor: colors.separator,
             borderBottomWidth: isLast ? 0 : 0.5,
           },
         ]}
       >
+        <TouchableOpacity
+          style={[styles.checkboxColumn, { borderRightColor: colors.separator }]}
+          onPress={() => toggleTaskSelection(task.id)}
+        >
+          <View style={[styles.checkbox, { borderColor: colors.separator }]}>
+            {selectedTasks.has(task.id) && <Text style={styles.checkboxCheck}>✓</Text>}
+          </View>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.taskTitleCell, { width: 250, borderRightColor: colors.separator }]}
           onPress={() => {
@@ -680,6 +770,41 @@ export default function ListViewScreen() {
         </View>
       )}
 
+      {/* Bulk Actions Toolbar */}
+      {selectedTasks.size > 0 && viewMode === 'list' && (
+        <View style={[styles.bulkActionsBar, { backgroundColor: colors.primary, borderBottomColor: colors.separator }]}>
+          <Text style={[styles.bulkActionsCount, { ...typography.body }]}>
+            {selectedTasks.size} selected
+          </Text>
+          <View style={styles.bulkActionButtons}>
+            <TouchableOpacity
+              style={[styles.bulkActionButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
+              onPress={() => setShowBulkStatusModal(true)}
+            >
+              <Text style={[styles.bulkActionButtonText, { ...typography.caption1 }]}>Status</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bulkActionButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
+              onPress={() => setShowBulkPriorityModal(true)}
+            >
+              <Text style={[styles.bulkActionButtonText, { ...typography.caption1 }]}>Priority</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bulkActionButton, { backgroundColor: colors.red }]}
+              onPress={bulkDelete}
+            >
+              <Text style={[styles.bulkActionButtonText, { ...typography.caption1 }]}>Delete</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bulkActionButton, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}
+              onPress={() => setSelectedTasks(new Set())}
+            >
+              <Text style={[styles.bulkActionButtonText, { ...typography.caption1 }]}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {viewMode === 'list' ? (
         <ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'}>
@@ -801,6 +926,88 @@ export default function ListViewScreen() {
                     })}
                 </ScrollView>
               )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Bulk Status Modal */}
+      {showBulkStatusModal && (
+        <Modal
+          visible={showBulkStatusModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowBulkStatusModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowBulkStatusModal(false)}
+          >
+            <View
+              style={[styles.pickerModal, { backgroundColor: colors.card }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.pickerHeader}>
+                <Text style={[styles.pickerTitle, { color: colors.text, ...typography.headline }]}>
+                  Change Status ({selectedTasks.size} tasks)
+                </Text>
+                <TouchableOpacity onPress={() => setShowBulkStatusModal(false)}>
+                  <Text style={[styles.doneButton, { color: colors.primary, ...typography.body }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              {(['todo', 'in-progress', 'completed', 'blocked', 'deferred'] as TaskStatus[]).map((s) => (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.pickerOption, { backgroundColor: colors.secondaryBackground }]}
+                  onPress={() => bulkUpdateStatus(s)}
+                >
+                  <Text style={[styles.pickerOptionText, { color: getStatusColor(s.charAt(0).toUpperCase() + s.slice(1)), ...typography.body }]}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Bulk Priority Modal */}
+      {showBulkPriorityModal && (
+        <Modal
+          visible={showBulkPriorityModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowBulkPriorityModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowBulkPriorityModal(false)}
+          >
+            <View
+              style={[styles.pickerModal, { backgroundColor: colors.card }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.pickerHeader}>
+                <Text style={[styles.pickerTitle, { color: colors.text, ...typography.headline }]}>
+                  Change Priority ({selectedTasks.size} tasks)
+                </Text>
+                <TouchableOpacity onPress={() => setShowBulkPriorityModal(false)}>
+                  <Text style={[styles.doneButton, { color: colors.primary, ...typography.body }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              {(['low', 'medium', 'high', 'critical'] as TaskPriority[]).map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.pickerOption, { backgroundColor: colors.secondaryBackground }]}
+                  onPress={() => bulkUpdatePriority(p)}
+                >
+                  <Text style={[styles.pickerOptionText, { color: getPriorityColor(p.charAt(0).toUpperCase() + p.slice(1)), ...typography.body }]}>
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </TouchableOpacity>
         </Modal>
@@ -1102,5 +1309,50 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#FFFFFF',
     marginLeft: 8,
+  },
+  checkboxColumn: {
+    width: 50,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 1,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxCheck: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  bulkActionsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  bulkActionsCount: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  bulkActionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bulkActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  bulkActionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });

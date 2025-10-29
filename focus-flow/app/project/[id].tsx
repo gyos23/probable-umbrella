@@ -8,12 +8,16 @@ import {
   TouchableOpacity,
   Alert,
   FlatList,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { TaskRow } from '../../src/components/TaskRow';
 import { DatePicker } from '../../src/components/DatePicker';
+import { TaskPriority } from '../../src/types';
 
 const PROJECT_COLORS = [
   '#FF3B30',
@@ -35,8 +39,11 @@ export default function ProjectDetailScreen() {
   const project = useTaskStore((state) => state.projects.find((p) => p.id === id));
   const allProjects = useTaskStore((state) => state.projects);
   const tasks = useTaskStore((state) => state.tasks.filter((t) => t.projectId === id));
+  const subprojects = useTaskStore((state) => state.projects.filter((p) => p.parentProjectId === id));
   const updateProject = useTaskStore((state) => state.updateProject);
   const deleteProject = useTaskStore((state) => state.deleteProject);
+  const addProject = useTaskStore((state) => state.addProject);
+  const addTask = useTaskStore((state) => state.addTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
 
   const [name, setName] = useState(project?.name || '');
@@ -52,6 +59,11 @@ export default function ProjectDetailScreen() {
   const [targetDate, setTargetDate] = useState<string | undefined>(
     project?.targetDate ? (typeof project.targetDate === 'string' ? project.targetDate : project.targetDate.toISOString()) : undefined
   );
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [showAddSubprojectModal, setShowAddSubprojectModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
+  const [newSubprojectName, setNewSubprojectName] = useState('');
 
   useEffect(() => {
     if (project) {
@@ -108,6 +120,34 @@ export default function ProjectDetailScreen() {
         },
       ]
     );
+  };
+
+  const handleAddTask = () => {
+    if (!newTaskTitle.trim()) return;
+
+    addTask({
+      title: newTaskTitle.trim(),
+      status: 'todo',
+      priority: newTaskPriority,
+      projectId: id,
+    });
+
+    setNewTaskTitle('');
+    setNewTaskPriority('medium');
+    setShowAddTaskModal(false);
+  };
+
+  const handleAddSubproject = () => {
+    if (!newSubprojectName.trim()) return;
+
+    addProject({
+      name: newSubprojectName.trim(),
+      color: color,
+      parentProjectId: id,
+    });
+
+    setNewSubprojectName('');
+    setShowAddSubprojectModal(false);
   };
 
   const completedTasks = tasks.filter((t) => t.status === 'completed').length;
@@ -341,6 +381,34 @@ export default function ProjectDetailScreen() {
           </View>
         </View>
 
+        {subprojects.length > 0 && (
+          <View style={styles.tasksSection}>
+            <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+              Sub-Projects ({subprojects.length})
+            </Text>
+            {subprojects.map((subproject) => (
+              <TouchableOpacity
+                key={subproject.id}
+                style={[styles.subprojectCard, { backgroundColor: colors.secondaryBackground }]}
+                onPress={() => router.push(`/project/${subproject.id}`)}
+              >
+                <View style={[styles.projectDot, { backgroundColor: subproject.color }]} />
+                <Text style={[styles.subprojectName, { color: colors.text, ...typography.body }]}>
+                  {subproject.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: colors.secondaryBackground }]}
+              onPress={() => setShowAddSubprojectModal(true)}
+            >
+              <Text style={[styles.addButtonText, { color: colors.primary, ...typography.body }]}>
+                + Add Sub-Project
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.tasksSection}>
           <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
             Tasks ({tasks.length})
@@ -363,6 +431,14 @@ export default function ProjectDetailScreen() {
               No tasks in this project yet
             </Text>
           )}
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: colors.secondaryBackground }]}
+            onPress={() => setShowAddTaskModal(true)}
+          >
+            <Text style={[styles.addButtonText, { color: colors.primary, ...typography.body }]}>
+              + Add Task
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.dangerSection}>
@@ -373,6 +449,132 @@ export default function ProjectDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Add Task Modal */}
+      <Modal
+        visible={showAddTaskModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddTaskModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowAddTaskModal(false)}
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.secondaryBackground }]}>
+            <Text style={[styles.modalTitle, { color: colors.text, ...typography.headline }]}>
+              Add Task
+            </Text>
+            <TextInput
+              style={[styles.input, { color: colors.text, borderColor: colors.separator, ...typography.body }]}
+              placeholder="Task title"
+              placeholderTextColor={colors.tertiaryText}
+              value={newTaskTitle}
+              onChangeText={setNewTaskTitle}
+              autoFocus
+            />
+            <Text style={[styles.inputLabel, { color: colors.secondaryText, ...typography.caption1 }]}>
+              Priority
+            </Text>
+            <View style={styles.priorityRow}>
+              {(['low', 'medium', 'high', 'critical'] as TaskPriority[]).map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[
+                    styles.priorityChip,
+                    {
+                      backgroundColor: newTaskPriority === p ? colors.primary : colors.background,
+                      borderColor: colors.separator,
+                    },
+                  ]}
+                  onPress={() => setNewTaskPriority(p)}
+                >
+                  <Text
+                    style={[
+                      styles.priorityChipText,
+                      {
+                        color: newTaskPriority === p ? '#FFFFFF' : colors.text,
+                        ...typography.caption1,
+                      },
+                    ]}
+                  >
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.separator }]}
+                onPress={() => setShowAddTaskModal(false)}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.text, ...typography.body }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.addButtonModal, { backgroundColor: colors.primary }]}
+                onPress={handleAddTask}
+              >
+                <Text style={[styles.addButtonTextModal, { ...typography.body }]}>Add Task</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Add Subproject Modal */}
+      <Modal
+        visible={showAddSubprojectModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddSubprojectModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowAddSubprojectModal(false)}
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.secondaryBackground }]}>
+            <Text style={[styles.modalTitle, { color: colors.text, ...typography.headline }]}>
+              Add Sub-Project
+            </Text>
+            <TextInput
+              style={[styles.input, { color: colors.text, borderColor: colors.separator, ...typography.body }]}
+              placeholder="Sub-project name"
+              placeholderTextColor={colors.tertiaryText}
+              value={newSubprojectName}
+              onChangeText={setNewSubprojectName}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.separator }]}
+                onPress={() => setShowAddSubprojectModal(false)}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.text, ...typography.body }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.addButtonModal, { backgroundColor: colors.primary }]}
+                onPress={handleAddSubproject}
+              >
+                <Text style={[styles.addButtonTextModal, { ...typography.body }]}>Add Sub-Project</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -553,5 +755,96 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     fontWeight: '600',
+  },
+  subprojectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 12,
+  },
+  subprojectName: {
+    fontWeight: '500',
+  },
+  addButton: {
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButtonText: {
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 500,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  inputLabel: {
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  priorityChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  priorityChipText: {
+    fontWeight: '500',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontWeight: '600',
+  },
+  addButtonModal: {},
+  addButtonTextModal: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });
