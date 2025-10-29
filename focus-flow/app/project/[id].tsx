@@ -310,14 +310,14 @@ export default function ProjectDetailScreen() {
           </Text>
           <DatePicker
             label="Start Date"
-            value={startDate}
-            onChange={(date) => setStartDate(date)}
+            value={startDate ? new Date(startDate) : undefined}
+            onChange={(date) => setStartDate(date?.toISOString())}
             placeholder="No start date"
           />
           <DatePicker
             label="Target Date"
-            value={targetDate}
-            onChange={(date) => setTargetDate(date)}
+            value={targetDate ? new Date(targetDate) : undefined}
+            onChange={(date) => setTargetDate(date?.toISOString())}
             placeholder="No target date"
           />
         </View>
