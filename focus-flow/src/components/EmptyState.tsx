@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { haptics } from '../utils/haptics';
 import { useTheme } from '../theme/useTheme';
 
 interface EmptyStateProps {
@@ -15,7 +15,7 @@ export function EmptyState({ emoji, title, message, actionLabel, onAction }: Emp
   const { colors, typography } = useTheme();
 
   const handleAction = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptics.medium();
     onAction?.();
   };
 

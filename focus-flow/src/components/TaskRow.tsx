@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import * as Haptics from 'expo-haptics';
+import { haptics } from '../utils/haptics';
 import { Task } from '../types';
 import { useTheme } from '../theme/useTheme';
 import { formatDate } from '../utils/dateUtils';
@@ -47,20 +47,20 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
   const handleToggleComplete = () => {
     // Haptic feedback based on completion state
     if (task.status === 'completed') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptics.light();
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptics.success();
     }
     onToggleComplete();
   };
 
   const handleDelete = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    haptics.warning();
     onDelete?.();
   };
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptics.light();
     onPress();
   };
 

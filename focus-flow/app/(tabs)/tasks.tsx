@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { haptics } from '../../src/utils/haptics';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
@@ -66,7 +66,7 @@ export default function TasksScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptics.light();
     await loadData();
     setTimeout(() => setRefreshing(false), 500);
   };
@@ -311,7 +311,7 @@ export default function TasksScreen() {
       <View style={[styles.fab, { backgroundColor: colors.primary }]}>
         <TouchableOpacity
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            haptics.medium();
             setIsAddModalVisible(true);
           }}
           style={styles.fabButton}

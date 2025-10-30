@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, AccessibilityRole } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { haptics } from '../utils/haptics';
 import { useTheme } from '../theme/useTheme';
 
 interface ButtonProps {
@@ -34,8 +34,8 @@ export const Button: React.FC<ButtonProps> = ({
   const { colors, typography, spacing, borderRadius } = useTheme();
 
   const handlePress = () => {
-    // Haptic feedback on button press
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Haptic feedback (automatically handles web platform)
+    haptics.light();
     onPress();
   };
 
