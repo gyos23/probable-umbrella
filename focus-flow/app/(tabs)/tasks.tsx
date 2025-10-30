@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,22 +10,27 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
 import { EmptyState } from '../../src/components/EmptyState';
+import { CelebrationConfetti } from '../../src/components/CelebrationConfetti';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, TaskStatus, TaskPriority } from '../../src/types';
 
 export default function TasksScreen() {
   const router = useRouter();
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography, spacing, reduceMotion } = useTheme();
   const tasks = useTaskStore((state) => state.tasks);
   const addTask = useTaskStore((state) => state.addTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
+  const loadData = useTaskStore((state) => state.loadData);
   const projects = useTaskStore((state) => state.projects);
   const focusAreas = useTaskStore((state) => state.focusAreas);
 
@@ -35,12 +40,36 @@ export default function TasksScreen() {
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title'>('date');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
     notes: '',
     status: 'todo' as TaskStatus,
     priority: 'medium' as TaskPriority,
   });
+
+  // Check if all tasks are completed for celebration
+  const allTasksCompleted = useMemo(() => {
+    const incompleteTasks = tasks.filter(
+      (t) => t.status !== 'completed' && t.status !== 'deferred'
+    );
+    return tasks.length > 0 && incompleteTasks.length === 0;
+  }, [tasks]);
+
+  // Trigger celebration when all tasks completed
+  useEffect(() => {
+    if (allTasksCompleted && !reduceMotion) {
+      setShowCelebration(true);
+    }
+  }, [allTasksCompleted, reduceMotion]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await loadData();
+    setTimeout(() => setRefreshing(false), 500);
+  };
 
   const filteredTasks = tasks
     .filter((task) => {
@@ -109,17 +138,29 @@ export default function TasksScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <View style={styles.header}>
         {/* Search Bar */}
-        <View style={[styles.searchContainer, { backgroundColor: colors.secondaryBackground }]}>
-          <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+        <View
+          style={[styles.searchContainer, { backgroundColor: colors.secondaryBackground }]}
+          accessible={false}
+        >
+          <Text style={{ fontSize: 16, marginRight: 8 }} accessible={false}>🔍</Text>
           <TextInput
             style={[styles.searchInput, { color: colors.text, ...typography.body }]}
             placeholder="Search tasks..."
             placeholderTextColor={colors.tertiaryText}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            accessible={true}
+            accessibilityLabel="Search tasks"
+            accessibilityHint="Type to search through your tasks"
+            accessibilityRole="search"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              accessible={true}
+              accessibilityLabel="Clear search"
+              accessibilityRole="button"
+            >
               <Text style={{ fontSize: 16, color: colors.tertiaryText }}>✕</Text>
             </TouchableOpacity>
           )}
@@ -219,9 +260,18 @@ export default function TasksScreen() {
             task={item}
             onPress={() => router.push(`/task/${item.id}`)}
             onToggleComplete={() => toggleTaskComplete(item.id)}
+            onDelete={() => deleteTask(item.id)}
           />
         )}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
         ListEmptyComponent={
           searchQuery ? (
             <EmptyState
@@ -259,7 +309,17 @@ export default function TasksScreen() {
       />
 
       <View style={[styles.fab, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => setIsAddModalVisible(true)} style={styles.fabButton}>
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setIsAddModalVisible(true);
+          }}
+          style={styles.fabButton}
+          accessible={true}
+          accessibilityLabel="Create new task"
+          accessibilityHint="Opens a form to create a new task"
+          accessibilityRole="button"
+        >
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -402,6 +462,11 @@ export default function TasksScreen() {
           </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CelebrationConfetti
+        trigger={showCelebration}
+        onAnimationEnd={() => setShowCelebration(false)}
+      />
     </SafeAreaView>
   );
 }
