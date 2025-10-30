@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/useTheme';
 
 interface EmptyStateProps {
@@ -13,19 +14,41 @@ interface EmptyStateProps {
 export function EmptyState({ emoji, title, message, actionLabel, onAction }: EmptyStateProps) {
   const { colors, typography } = useTheme();
 
+  const handleAction = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onAction?.();
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.emoji}>{emoji}</Text>
-      <Text style={[styles.title, { color: colors.text, ...typography.title2 }]}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityRole="text"
+      accessibilityLabel={`${title}. ${message}`}
+    >
+      <Text style={styles.emoji} accessible={false} aria-hidden={true}>
+        {emoji}
+      </Text>
+      <Text
+        style={[styles.title, { color: colors.text, ...typography.title2 }]}
+        accessible={false}
+      >
         {title}
       </Text>
-      <Text style={[styles.message, { color: colors.secondaryText, ...typography.body }]}>
+      <Text
+        style={[styles.message, { color: colors.secondaryText, ...typography.body }]}
+        accessible={false}
+      >
         {message}
       </Text>
       {actionLabel && onAction && (
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={onAction}
+          onPress={handleAction}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          activeOpacity={0.7}
         >
           <Text style={[styles.actionButtonText, { ...typography.body }]}>
             {actionLabel}
