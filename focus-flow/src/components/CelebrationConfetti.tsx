@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
-import * as Haptics from 'expo-haptics';
+import { haptics } from '../utils/haptics';
 
 interface CelebrationConfettiProps {
   trigger: boolean;
@@ -16,8 +16,8 @@ export const CelebrationConfetti: React.FC<CelebrationConfettiProps> = ({
 
   useEffect(() => {
     if (trigger) {
-      // Trigger haptic feedback
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Trigger haptic feedback (automatically handles web)
+      haptics.success();
 
       // Start confetti
       confettiRef.current?.start();

@@ -1,15 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTaskStore } from '../src/store/taskStore';
+import { DailyFocusModal } from '../src/components/DailyFocusModal';
 import { Colors } from '../src/theme/colors';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const loadData = useTaskStore((state) => state.loadData);
   const populateSampleData = useTaskStore((state) => state.populateSampleData);
+  const shouldShowDailyPrompt = useTaskStore((state) => state.shouldShowDailyPrompt);
+
+  const [showDailyFocus, setShowDailyFocus] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -20,6 +24,14 @@ export default function RootLayout() {
       if (currentTasks.length === 0) {
         populateSampleData();
       }
+
+      // Check if we should show daily prompt after data loads
+      // Wait a bit for app to fully render first
+      setTimeout(() => {
+        if (shouldShowDailyPrompt()) {
+          setShowDailyFocus(true);
+        }
+      }, 500);
     };
 
     initializeData();
@@ -67,6 +79,11 @@ export default function RootLayout() {
             }}
           />
         </Stack>
+
+        <DailyFocusModal
+          visible={showDailyFocus}
+          onClose={() => setShowDailyFocus(false)}
+        />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
