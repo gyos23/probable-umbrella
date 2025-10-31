@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { QuickAddTask } from '../../src/components/QuickAddTask';
+import { DailyFocusModal } from '../../src/components/DailyFocusModal';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, Project } from '../../src/types';
 import { formatDate, isToday, differenceInDays } from '../../src/utils/dateUtils';
@@ -13,7 +14,11 @@ export default function DashboardScreen() {
   const router = useRouter();
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useTaskStore((state) => state.projects);
+  const dailyGoal = useTaskStore((state) => state.dailyGoal);
+  const focusedTaskIds = useTaskStore((state) => state.focusedTaskIds);
+  const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showDailyFocusModal, setShowDailyFocusModal] = useState(false);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -61,6 +66,22 @@ export default function DashboardScreen() {
       completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
     };
   }, [tasks, projects]);
+
+  const dailyFocusStats = useMemo(() => {
+    if (dailyGoal === 0 || focusedTaskIds.length === 0) {
+      return null;
+    }
+
+    const focusedTasks = tasks.filter((t) => focusedTaskIds.includes(t.id));
+    const completedCount = focusedTasks.filter((t) => t.status === 'completed').length;
+    const progressPercent = Math.round((completedCount / dailyGoal) * 100);
+
+    return {
+      focusedTasks,
+      completedCount,
+      progressPercent,
+    };
+  }, [tasks, dailyGoal, focusedTaskIds]);
 
   const renderStatCard = (label: string, value: string | number, color: string, onPress?: () => void) => (
     <TouchableOpacity
@@ -166,6 +187,81 @@ export default function DashboardScreen() {
           {renderStatCard('Completion Rate (All Time)', `${stats.completionRate}%`, colors.purple)}
         </View>
 
+        {/* Daily Focus Section */}
+        {dailyFocusStats && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text, ...typography.title2 }]}>
+                🎯 Today's Focus
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
+                {dailyFocusStats.completedCount} of {dailyGoal} completed
+              </Text>
+            </View>
+            <View style={[styles.sectionContent, { backgroundColor: colors.secondaryBackground }]}>
+              {/* Progress Bar */}
+              <View style={[styles.progressBarContainer, { backgroundColor: colors.tertiaryBackground }]}>
+                <View
+                  style={[
+                    styles.progressBar,
+                    {
+                      backgroundColor: dailyFocusStats.progressPercent === 100 ? colors.green : colors.primary,
+                      width: `${dailyFocusStats.progressPercent}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.progressText, { color: colors.secondaryText, ...typography.caption1 }]}>
+                {dailyFocusStats.progressPercent}% complete
+                {dailyFocusStats.progressPercent === 100 && ' 🎉'}
+              </Text>
+
+              {/* Focused Tasks */}
+              {dailyFocusStats.focusedTasks.map((task) => (
+                <TouchableOpacity
+                  key={task.id}
+                  style={[
+                    styles.focusTaskRow,
+                    {
+                      backgroundColor: task.status === 'completed' ? colors.background : 'transparent',
+                      borderLeftColor: task.status === 'completed' ? colors.green : colors.primary,
+                    },
+                  ]}
+                  onPress={() => router.push(`/task/${task.id}`)}
+                >
+                  <Pressable
+                    onPress={() => toggleTaskComplete(task.id)}
+                    style={[
+                      styles.focusCheckbox,
+                      {
+                        borderColor: task.status === 'completed' ? colors.green : colors.separator,
+                        backgroundColor: task.status === 'completed' ? colors.green : 'transparent',
+                      },
+                    ]}
+                  >
+                    {task.status === 'completed' && (
+                      <Text style={styles.focusCheckmark}>✓</Text>
+                    )}
+                  </Pressable>
+                  <Text
+                    style={[
+                      styles.focusTaskTitle,
+                      {
+                        color: task.status === 'completed' ? colors.tertiaryText : colors.text,
+                        textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
+                        ...typography.body,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {task.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Overdue Section */}
         {stats.overdueTasks.length > 0 && (
           <View style={styles.section}>
@@ -251,6 +347,13 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.quickActions}>
             <TouchableOpacity
+              style={[styles.quickActionButton, { backgroundColor: colors.green }]}
+              onPress={() => setShowDailyFocusModal(true)}
+            >
+              <Text style={[styles.quickActionText, { ...typography.headline }]}>🎯</Text>
+              <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Plan Day</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.quickActionButton, { backgroundColor: colors.primary }]}
               onPress={() => router.push('/tasks')}
             >
@@ -271,13 +374,6 @@ export default function DashboardScreen() {
               <Text style={[styles.quickActionText, { ...typography.headline }]}>📅</Text>
               <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Calendar</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickActionButton, { backgroundColor: colors.purple }]}
-              onPress={() => router.push('/list')}
-            >
-              <Text style={[styles.quickActionText, { ...typography.headline }]}>📊</Text>
-              <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Analytics</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -288,6 +384,11 @@ export default function DashboardScreen() {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+
+      <DailyFocusModal
+        visible={showDailyFocusModal}
+        onClose={() => setShowDailyFocusModal(false)}
+      />
 
       <QuickAddTask
         visible={showQuickAdd}
@@ -343,9 +444,52 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: '600',
   },
+  sectionSubtitle: {
+    marginTop: 4,
+  },
   sectionContent: {
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  progressBarContainer: {
+    height: 8,
+    borderRadius: 4,
+    marginVertical: 12,
+    marginHorizontal: 12,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  focusTaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderLeftWidth: 3,
+  },
+  focusCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  focusCheckmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  focusTaskTitle: {
+    flex: 1,
   },
   taskRow: {
     flexDirection: 'row',
