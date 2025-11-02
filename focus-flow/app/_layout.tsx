@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTaskStore } from '../src/store/taskStore';
+import { useSettingsStore } from '../src/store/settingsStore';
 import { DailyFocusModal } from '../src/components/DailyFocusModal';
 import { Colors } from '../src/theme/colors';
 
@@ -12,12 +13,17 @@ export default function RootLayout() {
   const loadData = useTaskStore((state) => state.loadData);
   const populateSampleData = useTaskStore((state) => state.populateSampleData);
   const shouldShowDailyPrompt = useTaskStore((state) => state.shouldShowDailyPrompt);
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
 
   const [showDailyFocus, setShowDailyFocus] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
-      await loadData();
+      // Load settings and task data in parallel
+      await Promise.all([
+        loadSettings(),
+        loadData(),
+      ]);
 
       // If no data exists, populate with sample data
       const currentTasks = useTaskStore.getState().tasks;
@@ -76,6 +82,13 @@ export default function RootLayout() {
             options={{
               headerShown: false,
               presentation: 'modal'
+            }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{
+              headerShown: false,
+              presentation: 'card'
             }}
           />
         </Stack>

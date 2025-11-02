@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { haptics } from '../../src/utils/haptics';
 import { useTaskStore } from '../../src/store/taskStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -33,6 +34,7 @@ export default function TasksScreen() {
   const loadData = useTaskStore((state) => state.loadData);
   const projects = useTaskStore((state) => state.projects);
   const focusAreas = useTaskStore((state) => state.focusAreas);
+  const viewDensity = useSettingsStore((state) => state.viewDensity);
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all');
@@ -261,6 +263,7 @@ export default function TasksScreen() {
             onPress={() => router.push(`/task/${item.id}`)}
             onToggleComplete={() => toggleTaskComplete(item.id)}
             onDelete={() => deleteTask(item.id)}
+            density={viewDensity}
           />
         )}
         contentContainerStyle={styles.listContent}
