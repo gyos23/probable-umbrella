@@ -5,16 +5,59 @@ import { haptics } from '../utils/haptics';
 import { Task } from '../types';
 import { useTheme } from '../theme/useTheme';
 import { formatDate } from '../utils/dateUtils';
+import { ViewDensity } from '../store/settingsStore';
 
 interface TaskRowProps {
   task: Task;
   onPress: () => void;
   onToggleComplete: () => void;
   onDelete?: () => void;
+  density?: ViewDensity;
 }
 
-export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplete, onDelete }) => {
+export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplete, onDelete, density = 'comfortable' }) => {
   const { colors, typography, spacing, borderRadius, shadow } = useTheme();
+
+  // Calculate spacing based on view density
+  const getDensitySpacing = () => {
+    switch (density) {
+      case 'compact':
+        return {
+          verticalPadding: 6,
+          horizontalPadding: 10,
+          checkboxSize: 18,
+          marginVertical: 2,
+          titleFontSize: 14,
+          metadataGap: 3,
+          badgePaddingV: 1,
+          badgePaddingH: 6,
+        };
+      case 'cozy':
+        return {
+          verticalPadding: 16,
+          horizontalPadding: 14,
+          checkboxSize: 22,
+          marginVertical: 4,
+          titleFontSize: 16,
+          metadataGap: 6,
+          badgePaddingV: 3,
+          badgePaddingH: 8,
+        };
+      default: // comfortable
+        return {
+          verticalPadding: 12,
+          horizontalPadding: 12,
+          checkboxSize: 20,
+          marginVertical: 3,
+          titleFontSize: 15,
+          metadataGap: 5,
+          badgePaddingV: 2,
+          badgePaddingH: 7,
+        };
+    }
+  };
+
+  const densitySpacing = getDensitySpacing();
 
   const getPriorityColor = () => {
     switch (task.priority) {
@@ -81,6 +124,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
           styles.swipeActions,
           {
             transform: [{ translateX }],
+            marginVertical: densitySpacing.marginVertical,
           },
         ]}
       >
@@ -137,6 +181,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
           {
             backgroundColor: colors.card,
             borderColor: colors.separator,
+            marginVertical: densitySpacing.marginVertical,
             ...shadow.sm,
           },
         ]}
@@ -150,7 +195,10 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
           checked: task.status === 'completed',
         }}
       >
-        <View style={styles.content}>
+        <View style={[styles.content, {
+          padding: densitySpacing.verticalPadding,
+          paddingHorizontal: densitySpacing.horizontalPadding,
+        }]}>
           <Pressable
             onPress={handleToggleComplete}
             style={[
@@ -158,6 +206,9 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
               {
                 borderColor: task.status === 'completed' ? colors.green : colors.separator,
                 backgroundColor: task.status === 'completed' ? colors.green : 'transparent',
+                width: densitySpacing.checkboxSize,
+                height: densitySpacing.checkboxSize,
+                borderRadius: densitySpacing.checkboxSize / 2,
               },
             ]}
             accessible={true}
@@ -169,7 +220,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
             }}
           >
             {task.status === 'completed' && (
-              <Text style={styles.checkmark}>✓</Text>
+              <Text style={[styles.checkmark, { fontSize: densitySpacing.checkboxSize * 0.6 }]}>✓</Text>
             )}
           </Pressable>
 
@@ -178,13 +229,14 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
               <Text
                 style={[
                   styles.title,
+                  typography.body,
                   {
                     color: task.status === 'completed' ? colors.tertiaryText : colors.text,
                     textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
-                    ...typography.body,
+                    fontSize: densitySpacing.titleFontSize,
                   },
                 ]}
-                numberOfLines={2}
+                numberOfLines={density === 'compact' ? 1 : 2}
                 accessible={false}
               >
                 {task.title}
@@ -198,23 +250,35 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
               />
             </View>
 
-            <View style={styles.metadata} accessible={false}>
+            <View style={[styles.metadata, { gap: densitySpacing.metadataGap }]} accessible={false}>
               {task.dueDate && (
-                <View style={[styles.badge, { backgroundColor: colors.secondaryBackground }]}>
+                <View style={[styles.badge, {
+                  backgroundColor: colors.secondaryBackground,
+                  paddingVertical: densitySpacing.badgePaddingV,
+                  paddingHorizontal: densitySpacing.badgePaddingH,
+                }]}>
                   <Text style={[styles.badgeText, { color: colors.secondaryText, ...typography.caption1 }]}>
                     Due: {formatDate(task.dueDate, 'MMM d')}
                   </Text>
                 </View>
               )}
-              {task.plannedDate && (
-                <View style={[styles.badge, { backgroundColor: colors.secondaryBackground }]}>
+              {task.plannedDate && density !== 'compact' && (
+                <View style={[styles.badge, {
+                  backgroundColor: colors.secondaryBackground,
+                  paddingVertical: densitySpacing.badgePaddingV,
+                  paddingHorizontal: densitySpacing.badgePaddingH,
+                }]}>
                   <Text style={[styles.badgeText, { color: colors.secondaryText, ...typography.caption1 }]}>
                     Planned: {formatDate(task.plannedDate, 'MMM d')}
                   </Text>
                 </View>
               )}
               {task.progress > 0 && task.progress < 100 && (
-                <View style={[styles.badge, { backgroundColor: colors.secondaryBackground }]}>
+                <View style={[styles.badge, {
+                  backgroundColor: colors.secondaryBackground,
+                  paddingVertical: densitySpacing.badgePaddingV,
+                  paddingHorizontal: densitySpacing.badgePaddingH,
+                }]}>
                   <Text style={[styles.badgeText, { color: colors.secondaryText, ...typography.caption1 }]}>
                     {task.progress}%
                   </Text>
@@ -222,7 +286,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
               )}
             </View>
 
-            {task.dependsOn.length > 0 && (
+            {task.dependsOn.length > 0 && density !== 'compact' && (
               <View style={styles.dependencies} accessible={false}>
                 <Text style={[styles.dependencyText, { color: colors.tertiaryText, ...typography.caption1 }]}>
                   Depends on {task.dependsOn.length} task{task.dependsOn.length > 1 ? 's' : ''}
@@ -239,19 +303,14 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
 const styles = StyleSheet.create({
   container: {
     borderRadius: 10,
-    marginVertical: 3,
     marginHorizontal: 12,
     borderWidth: 0.5,
   },
   content: {
     flexDirection: 'row',
-    padding: 12,
     alignItems: 'flex-start',
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
     borderWidth: 1.5,
     marginRight: 10,
     alignItems: 'center',
@@ -259,7 +318,6 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: '#FFFFFF',
-    fontSize: 12,
     fontWeight: '700',
   },
   taskInfo: {
@@ -273,7 +331,6 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     marginRight: 8,
-    fontSize: 15,
   },
   priorityIndicator: {
     width: 6,
@@ -284,12 +341,9 @@ const styles = StyleSheet.create({
   metadata: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 5,
     marginBottom: 3,
   },
   badge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
     borderRadius: 5,
   },
   badgeText: {
@@ -306,7 +360,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginVertical: 3,
     marginRight: 12,
   },
   swipeAction: {

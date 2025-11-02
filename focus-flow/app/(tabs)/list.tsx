@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, Project, TaskStatus, TaskPriority } from '../../src/types';
 import { formatDate, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, addDays, subDays, min, max } from '../../src/utils/dateUtils';
@@ -39,6 +40,7 @@ export default function ListViewScreen() {
   const updateTask = useTaskStore((state) => state.updateTask);
   const addDependency = useTaskStore((state) => state.addDependency);
   const removeDependency = useTaskStore((state) => state.removeDependency);
+  const listViewShowAllTasks = useSettingsStore((state) => state.listViewShowAllTasks);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
@@ -199,7 +201,6 @@ export default function ListViewScreen() {
           deleteTask(taskId);
         });
         setSelectedTasks(new Set());
-        setShowBulkActions(false);
       }
     } else {
       Alert.alert(
@@ -216,7 +217,6 @@ export default function ListViewScreen() {
                 deleteTask(taskId);
               });
               setSelectedTasks(new Set());
-              setShowBulkActions(false);
             },
           },
         ]
@@ -281,6 +281,17 @@ export default function ListViewScreen() {
   const tasksWithDates = useMemo(() => {
     return tasks.filter((task) => task.startDate || task.plannedDate || task.dueDate);
   }, [tasks]);
+
+  const tasksWithoutDates = useMemo(() => {
+    return tasks.filter((task) => !task.startDate && !task.plannedDate && !task.dueDate);
+  }, [tasks]);
+
+  const ganttTasks = useMemo(() => {
+    if (listViewShowAllTasks) {
+      return [...tasksWithDates, ...tasksWithoutDates];
+    }
+    return tasksWithDates;
+  }, [tasksWithDates, tasksWithoutDates, listViewShowAllTasks]);
 
   const { minDate, maxDate, days } = useMemo(() => {
     if (tasksWithDates.length === 0) {
@@ -590,7 +601,7 @@ export default function ListViewScreen() {
     </View>
   );
 
-  const renderGanttTaskRow = (task: Task, index: number) => {
+  const renderGanttTaskRow = (task: Task, index: number, isWithoutDate: boolean = false) => {
     const position = getTaskPosition(task);
     const taskColor = getTaskColor(task);
 
@@ -619,11 +630,16 @@ export default function ListViewScreen() {
               {task.progress}%
             </Text>
           )}
+          {isWithoutDate && (
+            <Text style={[styles.progressText, { color: colors.tertiaryText, ...typography.caption2 }]}>
+              No dates set
+            </Text>
+          )}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={[styles.timelineArea, { width: days.length * DAY_WIDTH }]}>
-            {position && (
+            {position && !isWithoutDate && (
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => handleTaskBarPress(task)}
@@ -816,17 +832,29 @@ export default function ListViewScreen() {
         </ScrollView>
       ) : (
         <>
-          {tasksWithDates.length === 0 ? (
+          {ganttTasks.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyStateText, { color: colors.tertiaryText, ...typography.body }]}>
-                No tasks with dates to display on Gantt chart.{'\n\n'}
-                Add start dates, planned dates, or due dates to your tasks to see them here.
+                No tasks to display on Gantt chart.{'\n\n'}
+                Create some tasks to see them here.
               </Text>
             </View>
           ) : (
             <ScrollView>
               {renderGanttTimelineHeader()}
               {tasksWithDates.map((task, index) => renderGanttTaskRow(task, index))}
+
+              {/* Tasks without dates section */}
+              {listViewShowAllTasks && tasksWithoutDates.length > 0 && (
+                <>
+                  <View style={[styles.ganttSeparator, { backgroundColor: colors.separator, marginVertical: 8 }]}>
+                    <Text style={[styles.ganttSeparatorText, { color: colors.secondaryText, ...typography.caption1 }]}>
+                      Tasks Without Dates ({tasksWithoutDates.length})
+                    </Text>
+                  </View>
+                  {tasksWithoutDates.map((task, index) => renderGanttTaskRow(task, tasksWithDates.length + index, true))}
+                </>
+              )}
             </ScrollView>
           )}
         </>
@@ -1354,5 +1382,15 @@ const styles = StyleSheet.create({
   bulkActionButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  ganttSeparator: {
+    height: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  ganttSeparatorText: {
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

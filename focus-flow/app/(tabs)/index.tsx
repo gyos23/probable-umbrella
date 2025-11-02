@@ -374,6 +374,13 @@ export default function DashboardScreen() {
               <Text style={[styles.quickActionText, { ...typography.headline }]}>📅</Text>
               <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Calendar</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickActionButton, { backgroundColor: colors.purple }]}
+              onPress={() => router.push('/settings')}
+            >
+              <Text style={[styles.quickActionText, { ...typography.headline }]}>⚙️</Text>
+              <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Settings</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
