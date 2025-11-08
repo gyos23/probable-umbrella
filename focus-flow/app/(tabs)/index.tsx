@@ -55,6 +55,10 @@ export default function DashboardScreen() {
       (p) => p.status === 'in-progress' || p.status === 'todo'
     );
 
+    const flaggedTasks = tasks.filter(
+      (t) => t.isFlagged && t.status !== 'completed'
+    );
+
     return {
       totalTasks,
       completedTasks,
@@ -63,6 +67,7 @@ export default function DashboardScreen() {
       dueTodayTasks,
       upcomingTasks,
       activeProjects,
+      flaggedTasks,
       completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
     };
   }, [tasks, projects]);
@@ -184,7 +189,6 @@ export default function DashboardScreen() {
           {renderStatCard('Total Tasks', stats.totalTasks, colors.blue)}
           {renderStatCard('Completed', stats.completedTasks, colors.green)}
           {renderStatCard('In Progress', stats.inProgressTasks, colors.orange)}
-          {renderStatCard('Completion Rate (All Time)', `${stats.completionRate}%`, colors.purple)}
         </View>
 
         {/* Daily Focus Section */}
@@ -258,6 +262,30 @@ export default function DashboardScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        )}
+
+        {/* Flagged Tasks Section */}
+        {stats.flaggedTasks.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text, ...typography.title2 }]}>
+                ⭐ Flagged ({stats.flaggedTasks.length})
+              </Text>
+            </View>
+            <View style={[styles.sectionContent, { backgroundColor: colors.secondaryBackground }]}>
+              {stats.flaggedTasks.slice(0, 5).map((task) => renderTaskRow(task))}
+              {stats.flaggedTasks.length > 5 && (
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => router.push('/tasks')}
+                >
+                  <Text style={[styles.viewAllText, { color: colors.primary, ...typography.caption1 }]}>
+                    View all {stats.flaggedTasks.length} flagged tasks
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}

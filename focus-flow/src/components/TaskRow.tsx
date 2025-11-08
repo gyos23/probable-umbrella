@@ -11,11 +11,12 @@ interface TaskRowProps {
   task: Task;
   onPress: () => void;
   onToggleComplete: () => void;
+  onToggleFlag?: () => void;
   onDelete?: () => void;
   density?: ViewDensity;
 }
 
-export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplete, onDelete, density = 'comfortable' }) => {
+export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplete, onToggleFlag, onDelete, density = 'comfortable' }) => {
   const { colors, typography, spacing, borderRadius, shadow } = useTheme();
 
   // Calculate spacing based on view density
@@ -241,6 +242,23 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
               >
                 {task.title}
               </Text>
+              {onToggleFlag && (
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.light();
+                    onToggleFlag();
+                  }}
+                  style={styles.flagButton}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={task.isFlagged ? 'Unflag task' : 'Flag task'}
+                  accessibilityHint="Double tap to toggle flag status"
+                >
+                  <Text style={[styles.flagIcon, { fontSize: densitySpacing.checkboxSize }]}>
+                    {task.isFlagged ? '⭐' : '☆'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <View
                 style={[
                   styles.priorityIndicator,
@@ -337,6 +355,14 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginTop: 5,
+  },
+  flagButton: {
+    paddingHorizontal: 4,
+    marginRight: 4,
+    marginTop: -2,
+  },
+  flagIcon: {
+    color: '#FFD700',
   },
   metadata: {
     flexDirection: 'row',
