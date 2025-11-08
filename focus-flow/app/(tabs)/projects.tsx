@@ -465,6 +465,7 @@ export default function ProjectsScreen() {
             </ScrollView>
           </SafeAreaView>
         </KeyboardAvoidingView>
+        )}
       </Modal>
     </SafeAreaView>
   );
