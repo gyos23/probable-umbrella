@@ -19,6 +19,7 @@ export interface Task {
   priority: TaskPriority;
   projectId?: string;
   focusAreaId?: string;
+  isFlagged?: boolean; // Star/flag important tasks
 
   // Dependencies
   dependsOn: string[]; // IDs of tasks this task depends on

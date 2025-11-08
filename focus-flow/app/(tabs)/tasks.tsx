@@ -30,6 +30,7 @@ export default function TasksScreen() {
   const tasks = useTaskStore((state) => state.tasks);
   const addTask = useTaskStore((state) => state.addTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
+  const toggleTaskFlag = useTaskStore((state) => state.toggleTaskFlag);
   const deleteTask = useTaskStore((state) => state.deleteTask);
   const loadData = useTaskStore((state) => state.loadData);
   const projects = useTaskStore((state) => state.projects);
@@ -42,6 +43,7 @@ export default function TasksScreen() {
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title'>('date');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [showOnlyFlagged, setShowOnlyFlagged] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [newTask, setNewTask] = useState({
@@ -75,6 +77,9 @@ export default function TasksScreen() {
 
   const filteredTasks = tasks
     .filter((task) => {
+      // Show only flagged filter
+      if (showOnlyFlagged && !task.isFlagged) return false;
+
       // Hide completed filter
       if (hideCompleted && task.status === 'completed') return false;
 
@@ -195,6 +200,22 @@ export default function TasksScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor: showOnlyFlagged ? colors.primary : colors.secondaryBackground,
+                borderColor: colors.separator,
+                marginLeft: 8,
+              }
+            ]}
+            onPress={() => setShowOnlyFlagged(!showOnlyFlagged)}
+          >
+            <Text style={[styles.sortButtonText, { color: showOnlyFlagged ? '#FFFFFF' : colors.text, ...typography.subheadline }]}>
+              {showOnlyFlagged ? '⭐ All' : '⭐ Flagged'}
+            </Text>
+          </TouchableOpacity>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -262,6 +283,7 @@ export default function TasksScreen() {
             task={item}
             onPress={() => router.push(`/task/${item.id}`)}
             onToggleComplete={() => toggleTaskComplete(item.id)}
+            onToggleFlag={() => toggleTaskFlag(item.id)}
             onDelete={() => deleteTask(item.id)}
             density={viewDensity}
           />
