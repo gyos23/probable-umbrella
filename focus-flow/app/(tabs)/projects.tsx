@@ -15,8 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { EmptyState } from '../../src/components/EmptyState';
+import { SmartProjectWizard } from '../../src/components/SmartProjectWizard';
 import { useTheme } from '../../src/theme/useTheme';
 import { Project } from '../../src/types';
+import { haptics } from '../../src/utils/haptics';
 
 const PROJECT_COLORS = [
   '#FF3B30',
@@ -38,6 +40,7 @@ export default function ProjectsScreen() {
   const addProject = useTaskStore((state) => state.addProject);
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState<'choice' | 'regular' | 'smart'>('choice');
   const [filterStatus, setFilterStatus] = useState<'active' | 'backlog' | 'archive' | 'all'>('active');
   const [newProject, setNewProject] = useState({
     name: '',
@@ -57,8 +60,37 @@ export default function ProjectsScreen() {
         description: '',
         color: PROJECT_COLORS[0],
       });
+      setModalMode('choice');
       setIsAddModalVisible(false);
     }
+  };
+
+  const handleAddSmartProject = (smartData: any) => {
+    if (newProject.name.trim()) {
+      addProject({
+        name: newProject.name,
+        description: newProject.description,
+        color: newProject.color,
+        smartFramework: smartData,
+      });
+      setNewProject({
+        name: '',
+        description: '',
+        color: PROJECT_COLORS[0],
+      });
+      setModalMode('choice');
+      setIsAddModalVisible(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setModalMode('choice');
+    setIsAddModalVisible(false);
+    setNewProject({
+      name: '',
+      description: '',
+      color: PROJECT_COLORS[0],
+    });
   };
 
   const getProjectTaskCount = (projectId: string) => {
@@ -255,15 +287,19 @@ export default function ProjectsScreen() {
         visible={isAddModalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setIsAddModalVisible(false)}
+        onRequestClose={handleCloseModal}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        {modalMode === 'smart' ? (
+          <SmartProjectWizard
+            projectName={newProject.name}
+            projectDescription={newProject.description}
+            onComplete={handleAddSmartProject}
+            onBack={() => setModalMode('choice')}
+          />
+        ) : modalMode === 'choice' ? (
           <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setIsAddModalVisible(false)}>
+              <TouchableOpacity onPress={handleCloseModal}>
                 <Text style={[styles.modalCancel, { color: colors.primary, ...typography.body }]}>
                   Cancel
                 </Text>
@@ -271,21 +307,109 @@ export default function ProjectsScreen() {
               <Text style={[styles.modalTitle, { color: colors.text, ...typography.headline }]}>
                 New Project
               </Text>
-              <TouchableOpacity onPress={handleAddProject} disabled={!newProject.name.trim()}>
-                <Text
-                  style={[
-                    styles.modalDone,
-                    {
-                      color: newProject.name.trim() ? colors.primary : colors.tertiaryText,
-                      ...typography.body,
-                      fontWeight: '600',
-                    },
-                  ]}
-                >
-                  Done
-                </Text>
-              </TouchableOpacity>
+              <View style={{ width: 60 }} />
             </View>
+
+            <ScrollView style={styles.modalContent} contentContainerStyle={styles.choiceContainer}>
+              <Text style={[styles.choiceTitle, { color: colors.text, ...typography.title2 }]}>
+                How would you like to create your project?
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.choiceCard, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+                onPress={() => {
+                  haptics.light();
+                  setModalMode('regular');
+                }}
+              >
+                <View style={[styles.choiceIcon, { backgroundColor: colors.blue }]}>
+                  <Text style={styles.choiceIconText}>📝</Text>
+                </View>
+                <View style={styles.choiceContent}>
+                  <Text style={[styles.choiceCardTitle, { color: colors.text, ...typography.headline }]}>
+                    Quick Project
+                  </Text>
+                  <Text style={[styles.choiceCardDescription, { color: colors.secondaryText, ...typography.body }]}>
+                    Simple and fast. Just add a name and description.
+                  </Text>
+                </View>
+                <Text style={[styles.choiceArrow, { color: colors.tertiaryText }]}>›</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.choiceCard, { backgroundColor: colors.secondaryBackground, borderColor: colors.primary }]}
+                onPress={() => {
+                  haptics.light();
+                  setModalMode('regular');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.choiceIcon, { backgroundColor: colors.green }]}>
+                  <Text style={styles.choiceIconText}>🎯</Text>
+                </View>
+                <View style={styles.choiceContent}>
+                  <Text style={[styles.choiceCardTitle, { color: colors.text, ...typography.headline }]}>
+                    SMART Goal Project
+                  </Text>
+                  <Text style={[styles.choiceCardDescription, { color: colors.secondaryText, ...typography.body }]}>
+                    Structured framework to create Specific, Measurable, Achievable, Relevant, and Time-bound goals.
+                  </Text>
+                  <View style={[styles.recommendedBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.recommendedText, { ...typography.caption2 }]}>✨ RECOMMENDED</Text>
+                  </View>
+                </View>
+                <Text style={[styles.choiceArrow, { color: colors.tertiaryText }]}>›</Text>
+              </TouchableOpacity>
+
+              <View style={[styles.smartInfoCard, { backgroundColor: colors.tertiaryBackground }]}>
+                <Text style={[styles.smartInfoTitle, { color: colors.text, ...typography.subheadline }]}>
+                  💡 Why use SMART goals?
+                </Text>
+                <Text style={[styles.smartInfoText, { color: colors.secondaryText, ...typography.caption1 }]}>
+                  SMART goals are proven to increase success rates by providing clarity, focus, and measurable outcomes. Perfect for important projects.
+                </Text>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        ) : (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={() => setModalMode('choice')}>
+                  <Text style={[styles.modalCancel, { color: colors.primary, ...typography.body }]}>
+                    Back
+                  </Text>
+                </TouchableOpacity>
+                <Text style={[styles.modalTitle, { color: colors.text, ...typography.headline }]}>
+                  New Project
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (newProject.name.trim()) {
+                      setModalMode('smart');
+                    } else {
+                      handleAddProject();
+                    }
+                  }}
+                  disabled={!newProject.name.trim()}
+                >
+                  <Text
+                    style={[
+                      styles.modalDone,
+                      {
+                        color: newProject.name.trim() ? colors.primary : colors.tertiaryText,
+                        ...typography.body,
+                        fontWeight: '600',
+                      },
+                    ]}
+                  >
+                    Next
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
             <ScrollView style={styles.modalContent}>
               <View style={[styles.inputGroup, { backgroundColor: colors.secondaryBackground }]}>
@@ -536,5 +660,70 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '700',
+  },
+  choiceContainer: {
+    padding: 16,
+  },
+  choiceTitle: {
+    fontWeight: '600',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  choiceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 2,
+  },
+  choiceIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  choiceIconText: {
+    fontSize: 24,
+  },
+  choiceContent: {
+    flex: 1,
+  },
+  choiceCardTitle: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  choiceCardDescription: {
+    lineHeight: 20,
+  },
+  choiceArrow: {
+    fontSize: 32,
+    fontWeight: '300',
+  },
+  recommendedBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  recommendedText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 10,
+  },
+  smartInfoCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  smartInfoTitle: {
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  smartInfoText: {
+    lineHeight: 18,
   },
 });

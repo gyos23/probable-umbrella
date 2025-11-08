@@ -52,6 +52,15 @@ export interface Project {
   focusAreaId?: string;
   parentProjectId?: string; // For nested project hierarchy
 
+  // SMART Framework (optional)
+  smartFramework?: {
+    specific: string;      // What exactly will you accomplish?
+    measurable: string;    // How will you measure success?
+    achievable: string;    // What resources/steps do you need?
+    relevant: string;      // Why is this important?
+    timeBound: string;     // When will you complete this?
+  };
+
   // Dates
   startDate?: Date;
   targetDate?: Date;
