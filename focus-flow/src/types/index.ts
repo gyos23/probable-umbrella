@@ -87,3 +87,19 @@ export interface CalendarEvent {
   date: Date;
   type: 'due' | 'planned' | 'start';
 }
+
+export interface TimeBlock {
+  taskId: string;
+  startTime: Date;
+  endTime: Date;
+  duration: number; // in minutes
+}
+
+export interface DailyPlan {
+  date: string; // ISO date string
+  timeBlocks: TimeBlock[];
+  breakDuration: number; // in minutes
+  totalWorkTime: number; // in minutes
+  taskIds: string[]; // ordered list of task IDs
+  createdAt: Date;
+}

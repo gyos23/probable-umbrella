@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, Project, FocusArea, TaskStatus, TaskPriority } from '../types';
+import { Task, Project, FocusArea, TaskStatus, TaskPriority, DailyPlan } from '../types';
 
 interface TaskStore {
   tasks: Task[];
@@ -11,6 +11,7 @@ interface TaskStore {
   dailyGoal: number;
   focusedTaskIds: string[];
   lastPromptDate: Date | null;
+  dailyPlan: DailyPlan | null;
 
   // Task actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>) => void;
@@ -37,6 +38,7 @@ interface TaskStore {
 
   // Daily focus actions
   setDailyFocus: (goal: number, taskIds: string[]) => void;
+  setDailyPlan: (plan: DailyPlan) => void;
   clearDailyFocus: () => void;
   shouldShowDailyPrompt: () => boolean;
   markPromptShown: () => void;
@@ -58,6 +60,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   dailyGoal: 0,
   focusedTaskIds: [],
   lastPromptDate: null,
+  dailyPlan: null,
 
   addTask: (taskData) => {
     const newTask: Task = {
@@ -244,10 +247,21 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     get().saveData();
   },
 
+  setDailyPlan: (plan) => {
+    set({
+      dailyPlan: plan,
+      dailyGoal: plan.taskIds.length,
+      focusedTaskIds: plan.taskIds,
+      lastPromptDate: new Date(),
+    });
+    get().saveData();
+  },
+
   clearDailyFocus: () => {
     set({
       dailyGoal: 0,
       focusedTaskIds: [],
+      dailyPlan: null,
     });
     get().saveData();
   },
@@ -352,7 +366,17 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const focusedTaskIds = parsed.focusedTaskIds || [];
         const lastPromptDate = parsed.lastPromptDate ? new Date(parsed.lastPromptDate) : null;
 
-        set({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate });
+        const dailyPlan = parsed.dailyPlan ? {
+          ...parsed.dailyPlan,
+          timeBlocks: parsed.dailyPlan.timeBlocks?.map((block: any) => ({
+            ...block,
+            startTime: new Date(block.startTime),
+            endTime: new Date(block.endTime),
+          })) || [],
+          createdAt: new Date(parsed.dailyPlan.createdAt),
+        } : null;
+
+        set({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan });
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -361,10 +385,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   saveData: async () => {
     try {
-      const { tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate } = get();
+      const { tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan } = get();
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate })
+        JSON.stringify({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan })
       );
     } catch (error) {
       console.error('Error saving data:', error);
