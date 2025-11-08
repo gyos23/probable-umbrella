@@ -17,6 +17,7 @@ interface TaskStore {
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTaskComplete: (id: string) => void;
+  toggleTaskFlag: (id: string) => void;
   bulkAddTasks: (tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[]) => void;
 
   // Project actions
@@ -101,6 +102,21 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
               status: task.status === 'completed' ? 'todo' : 'completed',
               completedDate: task.status === 'completed' ? undefined : new Date(),
               progress: task.status === 'completed' ? 0 : 100,
+              updatedAt: new Date(),
+            }
+          : task
+      ),
+    }));
+    get().saveData();
+  },
+
+  toggleTaskFlag: (id) => {
+    set((state) => ({
+      tasks: state.tasks.map((task) =>
+        task.id === id
+          ? {
+              ...task,
+              isFlagged: !task.isFlagged,
               updatedAt: new Date(),
             }
           : task
