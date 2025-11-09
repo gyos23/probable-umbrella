@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, Project, FocusArea, TaskStatus, TaskPriority, DailyPlan } from '../types';
+import { getNextOccurrence, shouldGenerateNextInstance } from '../utils/recurrence';
 
 interface TaskStore {
   tasks: Task[];
@@ -20,6 +21,7 @@ interface TaskStore {
   toggleTaskComplete: (id: string) => void;
   toggleTaskFlag: (id: string) => void;
   bulkAddTasks: (tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[]) => void;
+  generateNextRecurringInstance: (taskId: string) => void;
 
   // Project actions
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>) => void;
@@ -97,19 +99,27 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   toggleTaskComplete: (id) => {
+    const task = get().tasks.find((t) => t.id === id);
+
     set((state) => ({
-      tasks: state.tasks.map((task) =>
-        task.id === id
+      tasks: state.tasks.map((t) =>
+        t.id === id
           ? {
-              ...task,
-              status: task.status === 'completed' ? 'todo' : 'completed',
-              completedDate: task.status === 'completed' ? undefined : new Date(),
-              progress: task.status === 'completed' ? 0 : 100,
+              ...t,
+              status: t.status === 'completed' ? 'todo' : 'completed',
+              completedDate: t.status === 'completed' ? undefined : new Date(),
+              progress: t.status === 'completed' ? 0 : 100,
               updatedAt: new Date(),
             }
-          : task
+          : t
       ),
     }));
+
+    // If completing a recurring task, generate the next instance
+    if (task && task.status !== 'completed' && task.isRecurring && task.recurrence) {
+      get().generateNextRecurringInstance(id);
+    }
+
     get().saveData();
   },
 
@@ -329,6 +339,53 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }));
 
     set((state) => ({ tasks: [...state.tasks, ...newTasks] }));
+  },
+
+  generateNextRecurringInstance: (taskId) => {
+    const task = get().tasks.find((t) => t.id === taskId);
+
+    if (!task || !task.isRecurring || !task.recurrence) {
+      return;
+    }
+
+    // Count completed instances of this recurring task
+    const completedCount = get().tasks.filter(
+      (t) => (t.parentRecurringTaskId === taskId || t.id === taskId) && t.status === 'completed'
+    ).length;
+
+    // Check if we should generate the next instance
+    if (!shouldGenerateNextInstance(task.recurrence, completedCount)) {
+      return;
+    }
+
+    // Calculate the next occurrence date
+    const baseDate = task.dueDate || task.recurringInstanceDate || new Date();
+    const nextDate = getNextOccurrence(baseDate, task.recurrence);
+
+    if (!nextDate) {
+      return;
+    }
+
+    // Create a new task instance
+    const newTask: Task = {
+      ...task,
+      id: generateId(),
+      status: 'todo',
+      completedDate: undefined,
+      progress: 0,
+      dueDate: nextDate,
+      recurringInstanceDate: nextDate,
+      parentRecurringTaskId: taskId,
+      order: get().tasks.length,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    set((state) => ({
+      tasks: [...state.tasks, newTask],
+    }));
+
+    get().saveData();
   },
 
   loadData: async () => {

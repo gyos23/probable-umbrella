@@ -1,5 +1,16 @@
 export type TaskStatus = 'todo' | 'in-progress' | 'completed' | 'blocked' | 'deferred';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+export type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+
+export interface Recurrence {
+  type: RecurrenceType;
+  interval: number; // e.g., every 2 days, every 3 weeks
+  daysOfWeek?: number[]; // 0-6 (Sun-Sat) for weekly recurrence
+  dayOfMonth?: number; // 1-31 for monthly recurrence
+  monthOfYear?: number; // 1-12 for yearly recurrence
+  endDate?: Date; // optional end date
+  endAfterOccurrences?: number; // optional number of times to repeat
+}
 
 export interface FocusArea {
   id: string;
@@ -35,6 +46,12 @@ export interface Task {
   estimatedDuration?: number; // in hours
   actualDuration?: number; // in hours
   progress: number; // 0-100
+
+  // Recurrence
+  isRecurring?: boolean;
+  recurrence?: Recurrence;
+  parentRecurringTaskId?: string; // Links generated instances to the template
+  recurringInstanceDate?: Date; // The specific date for this instance
 
   // Metadata
   tags: string[];
