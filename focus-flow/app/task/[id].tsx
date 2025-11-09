@@ -12,9 +12,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useTheme } from '../../src/theme/useTheme';
-import { TaskStatus, TaskPriority } from '../../src/types';
+import { TaskStatus, TaskPriority, Recurrence } from '../../src/types';
 import { formatDate } from '../../src/utils/dateUtils';
 import { DatePicker } from '../../src/components/DatePicker';
+import { RecurrenceModal } from '../../src/components/RecurrenceModal';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,6 +39,7 @@ export default function TaskDetailScreen() {
   const [showNewDependency, setShowNewDependency] = useState(false);
   const [newDependencyTitle, setNewDependencyTitle] = useState('');
   const [dependencySearch, setDependencySearch] = useState('');
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -116,6 +118,40 @@ export default function TaskDetailScreen() {
       setNewDependencyTitle('');
       setShowNewDependency(false);
     }, 100);
+  };
+
+  const handleRecurrenceSave = (recurrence: Recurrence | null) => {
+    if (recurrence) {
+      updateTask(id!, {
+        isRecurring: true,
+        recurrence,
+      });
+    } else {
+      updateTask(id!, {
+        isRecurring: false,
+        recurrence: undefined,
+      });
+    }
+  };
+
+  const getRecurrenceLabel = () => {
+    if (!task?.recurrence) return 'None';
+
+    const { type, interval } = task.recurrence;
+
+    if (type === 'daily') {
+      return interval === 1 ? 'Daily' : `Every ${interval} days`;
+    } else if (type === 'weekly') {
+      return interval === 1 ? 'Weekly' : `Every ${interval} weeks`;
+    } else if (type === 'monthly') {
+      return interval === 1 ? 'Monthly' : `Every ${interval} months`;
+    } else if (type === 'yearly') {
+      return 'Yearly';
+    } else if (type === 'custom') {
+      return `Every ${interval} days`;
+    }
+
+    return 'Custom';
   };
 
   return (
@@ -406,6 +442,33 @@ export default function TaskDetailScreen() {
 
         <View style={styles.optionsSection}>
           <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
+            Repeat
+          </Text>
+          <TouchableOpacity
+            style={[styles.recurrenceButton, { backgroundColor: colors.secondaryBackground, borderColor: colors.separator }]}
+            onPress={() => setShowRecurrenceModal(true)}
+          >
+            <View style={styles.recurrenceContent}>
+              <Text style={[styles.recurrenceEmoji]}>🔁</Text>
+              <View style={styles.recurrenceText}>
+                <Text style={[styles.recurrenceLabel, { color: colors.text, ...typography.body }]}>
+                  {getRecurrenceLabel()}
+                </Text>
+                {task.isRecurring && task.recurrence && (
+                  <Text style={[styles.recurrenceDetail, { color: colors.secondaryText, ...typography.caption1 }]}>
+                    {task.recurrence.endDate && `Until ${formatDate(task.recurrence.endDate, 'MMM d, yyyy')}`}
+                    {task.recurrence.endAfterOccurrences && `${task.recurrence.endAfterOccurrences} times`}
+                    {!task.recurrence.endDate && !task.recurrence.endAfterOccurrences && 'Forever'}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <Text style={[styles.recurrenceChevron, { color: colors.tertiaryText }]}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.optionsSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
             Dependencies
           </Text>
           <Text style={[styles.sectionSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
@@ -527,6 +590,13 @@ export default function TaskDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <RecurrenceModal
+        visible={showRecurrenceModal}
+        onClose={() => setShowRecurrenceModal(false)}
+        onSave={handleRecurrenceSave}
+        initialRecurrence={task.recurrence}
+      />
     </View>
   );
 }
@@ -719,5 +789,36 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     fontWeight: '600',
+  },
+  recurrenceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  recurrenceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  recurrenceEmoji: {
+    fontSize: 24,
+  },
+  recurrenceText: {
+    flex: 1,
+  },
+  recurrenceLabel: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  recurrenceDetail: {
+    fontWeight: '500',
+  },
+  recurrenceChevron: {
+    fontSize: 24,
+    fontWeight: '300',
   },
 });
