@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, SectionList, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, SectionList, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { useTheme } from '../../src/theme/useTheme';
+import { haptics } from '../../src/utils/haptics';
 import { isSameDay, isToday, addDays } from '../../src/utils/dateUtils';
 import { Task } from '../../src/types';
 
@@ -12,7 +13,13 @@ export default function ForecastScreen() {
   const router = useRouter();
   const { colors, typography, spacing } = useTheme();
   const tasks = useTaskStore((state) => state.tasks);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
+  const toggleTaskFlag = useTaskStore((state) => state.toggleTaskFlag);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
+  const loadData = useTaskStore((state) => state.loadData);
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const forecastData = useMemo(() => {
     const today = new Date();
@@ -98,6 +105,13 @@ export default function ForecastScreen() {
     return sections;
   }, [tasks, colors]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    haptics.refresh();
+    await loadData();
+    setTimeout(() => setRefreshing(false), 500);
+  };
+
   const getTotalTaskCount = () => {
     return forecastData.reduce((sum, section) => sum + section.data.length, 0);
   };
@@ -130,11 +144,22 @@ export default function ForecastScreen() {
         <SectionList
           sections={forecastData}
           keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.blue}
+            />
+          }
           renderItem={({ item }) => (
             <TaskRow
               task={item}
               onPress={() => router.push(`/task/${item.id}`)}
               onToggleComplete={() => toggleTaskComplete(item.id)}
+              onToggleFlag={() => toggleTaskFlag(item.id)}
+              onDelete={() => deleteTask(item.id)}
+              onChangeStatus={(status) => updateTask(item.id, { status })}
+              onChangePriority={(priority) => updateTask(item.id, { priority })}
             />
           )}
           renderSectionHeader={({ section: { title, emoji, color, data } }) => (
