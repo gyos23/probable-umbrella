@@ -287,7 +287,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       rightThreshold={40}
       overshootRight={false}
     >
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.container,
           {
@@ -299,7 +299,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
         ]}
         onPress={handlePress}
         onLongPress={handleLongPress}
-        activeOpacity={0.7}
+        delayLongPress={500}
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel={getAccessibilityLabel()}
@@ -429,7 +429,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
       <ContextMenu
         visible={showContextMenu}
         onClose={() => setShowContextMenu(false)}
