@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { Swipeable, LongPressGestureHandler, State } from 'react-native-gesture-handler';
 import { haptics } from '../utils/haptics';
 import { Task, TaskPriority, TaskStatus } from '../types';
 import { useTheme } from '../theme/useTheme';
@@ -124,6 +124,12 @@ export const TaskRow: React.FC<TaskRowProps> = ({
   const handleLongPress = () => {
     haptics.medium();
     setShowContextMenu(true);
+  };
+
+  const onLongPressGestureEvent = (event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      handleLongPress();
+    }
   };
 
   const getContextMenuItems = (): ContextMenuItem[] => {
@@ -287,27 +293,29 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       rightThreshold={40}
       overshootRight={false}
     >
-      <TouchableOpacity
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.separator,
-            marginVertical: densitySpacing.marginVertical,
-            ...shadow.sm,
-          },
-        ]}
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        activeOpacity={0.7}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel={getAccessibilityLabel()}
-        accessibilityHint="Double tap to view task details. Swipe left for quick actions. Long press for more options."
-        accessibilityState={{
-          checked: task.status === 'completed',
-        }}
+      <LongPressGestureHandler
+        onHandlerStateChange={onLongPressGestureEvent}
+        minDurationMs={500}
       >
+        <Pressable
+          style={[
+            styles.container,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.separator,
+              marginVertical: densitySpacing.marginVertical,
+              ...shadow.sm,
+            },
+          ]}
+          onPress={handlePress}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={getAccessibilityLabel()}
+          accessibilityHint="Double tap to view task details. Swipe left for quick actions. Long press for more options."
+          accessibilityState={{
+            checked: task.status === 'completed',
+          }}
+        >
         <View style={[styles.content, {
           padding: densitySpacing.verticalPadding,
           paddingHorizontal: densitySpacing.horizontalPadding,
@@ -429,7 +437,8 @@ export const TaskRow: React.FC<TaskRowProps> = ({
             )}
           </View>
         </View>
-      </TouchableOpacity>
+        </Pressable>
+      </LongPressGestureHandler>
       <ContextMenu
         visible={showContextMenu}
         onClose={() => setShowContextMenu(false)}
