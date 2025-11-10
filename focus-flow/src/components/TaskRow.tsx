@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { haptics } from '../utils/haptics';
-import { Task } from '../types';
+import { Task, TaskPriority, TaskStatus } from '../types';
 import { useTheme } from '../theme/useTheme';
 import { formatDate } from '../utils/dateUtils';
 import { ViewDensity } from '../store/settingsStore';
+import { ContextMenu, ContextMenuItem } from './ContextMenu';
 
 interface TaskRowProps {
   task: Task;
@@ -13,11 +14,23 @@ interface TaskRowProps {
   onToggleComplete: () => void;
   onToggleFlag?: () => void;
   onDelete?: () => void;
+  onChangeStatus?: (status: TaskStatus) => void;
+  onChangePriority?: (priority: TaskPriority) => void;
   density?: ViewDensity;
 }
 
-export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplete, onToggleFlag, onDelete, density = 'comfortable' }) => {
+export const TaskRow: React.FC<TaskRowProps> = ({
+  task,
+  onPress,
+  onToggleComplete,
+  onToggleFlag,
+  onDelete,
+  onChangeStatus,
+  onChangePriority,
+  density = 'comfortable'
+}) => {
   const { colors, typography, spacing, borderRadius, shadow } = useTheme();
+  const [showContextMenu, setShowContextMenu] = useState(false);
 
   // Calculate spacing based on view density
   const getDensitySpacing = () => {
@@ -108,6 +121,104 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
     onPress();
   };
 
+  const handleLongPress = () => {
+    haptics.medium();
+    setShowContextMenu(true);
+  };
+
+  const getContextMenuItems = (): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    // Complete/Uncomplete
+    items.push({
+      label: task.status === 'completed' ? 'Mark Incomplete' : 'Mark Complete',
+      icon: task.status === 'completed' ? '↩' : '✓',
+      onPress: onToggleComplete,
+    });
+
+    // Flag/Unflag
+    if (onToggleFlag) {
+      items.push({
+        label: task.isFlagged ? 'Unflag' : 'Flag',
+        icon: task.isFlagged ? '⭐' : '☆',
+        onPress: onToggleFlag,
+      });
+    }
+
+    // Status submenu items
+    if (onChangeStatus) {
+      if (task.status !== 'in-progress') {
+        items.push({
+          label: 'Start Task',
+          icon: '▶',
+          onPress: () => onChangeStatus('in-progress'),
+        });
+      }
+      if (task.status !== 'deferred') {
+        items.push({
+          label: 'Defer',
+          icon: '⏸',
+          onPress: () => onChangeStatus('deferred'),
+        });
+      }
+      if (task.status !== 'blocked') {
+        items.push({
+          label: 'Mark Blocked',
+          icon: '🚫',
+          onPress: () => onChangeStatus('blocked'),
+        });
+      }
+    }
+
+    // Priority submenu items
+    if (onChangePriority) {
+      const priorityOptions: { priority: TaskPriority; label: string; icon: string; level: number }[] = [
+        { priority: 'critical', label: 'Critical Priority', icon: '🔴', level: 3 },
+        { priority: 'high', label: 'High Priority', icon: '🟠', level: 2 },
+        { priority: 'medium', label: 'Medium Priority', icon: '🟡', level: 1 },
+        { priority: 'low', label: 'Low Priority', icon: '🔵', level: 0 },
+      ];
+
+      const currentLevel = priorityOptions.find(p => p.priority === task.priority)?.level || 1;
+
+      priorityOptions
+        .filter(p => p.priority !== task.priority)
+        .forEach(p => {
+          items.push({
+            label: p.label,
+            icon: p.icon,
+            onPress: () => {
+              if (p.level > currentLevel) {
+                haptics.priorityUp();
+              } else {
+                haptics.priorityDown();
+              }
+              onChangePriority(p.priority);
+            },
+          });
+        });
+    }
+
+    // Edit
+    items.push({
+      label: 'Edit',
+      icon: '✏',
+      onPress: handlePress,
+    });
+
+    // Delete
+    if (onDelete) {
+      items.push({
+        label: 'Delete',
+        icon: '🗑',
+        onPress: onDelete,
+        destructive: true,
+      });
+    }
+
+    return items;
+  };
+
   // Swipe actions
   const renderRightActions = (
     progress: Animated.AnimatedInterpolation<number>,
@@ -187,11 +298,12 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
           },
         ]}
         onPress={handlePress}
+        onLongPress={handleLongPress}
         activeOpacity={0.7}
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel={getAccessibilityLabel()}
-        accessibilityHint="Double tap to view task details. Swipe left for quick actions."
+        accessibilityHint="Double tap to view task details. Swipe left for quick actions. Long press for more options."
         accessibilityState={{
           checked: task.status === 'completed',
         }}
@@ -245,7 +357,11 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
               {onToggleFlag && (
                 <TouchableOpacity
                   onPress={() => {
-                    haptics.light();
+                    if (!task.isFlagged) {
+                      haptics.flagged();
+                    } else {
+                      haptics.soft();
+                    }
                     onToggleFlag();
                   }}
                   style={styles.flagButton}
@@ -314,6 +430,11 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onPress, onToggleComplet
           </View>
         </View>
       </TouchableOpacity>
+      <ContextMenu
+        visible={showContextMenu}
+        onClose={() => setShowContextMenu(false)}
+        items={getContextMenuItems()}
+      />
     </Swipeable>
   );
 };

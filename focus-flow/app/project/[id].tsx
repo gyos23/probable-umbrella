@@ -44,7 +44,10 @@ export default function ProjectDetailScreen() {
   const deleteProject = useTaskStore((state) => state.deleteProject);
   const addProject = useTaskStore((state) => state.addProject);
   const addTask = useTaskStore((state) => state.addTask);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
+  const toggleTaskFlag = useTaskStore((state) => state.toggleTaskFlag);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
 
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
@@ -507,6 +510,10 @@ export default function ProjectDetailScreen() {
                   task={item}
                   onPress={() => router.push(`/task/${item.id}`)}
                   onToggleComplete={() => toggleTaskComplete(item.id)}
+                  onToggleFlag={() => toggleTaskFlag(item.id)}
+                  onDelete={() => deleteTask(item.id)}
+                  onChangeStatus={(status) => updateTask(item.id, { status })}
+                  onChangePriority={(priority) => updateTask(item.id, { priority })}
                 />
               )}
             />
