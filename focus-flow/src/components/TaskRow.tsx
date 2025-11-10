@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Swipeable, RectButton } from 'react-native-gesture-handler';
+import { Swipeable } from 'react-native-gesture-handler';
 import { haptics } from '../utils/haptics';
 import { Task, TaskPriority, TaskStatus } from '../types';
 import { useTheme } from '../theme/useTheme';
@@ -31,7 +31,6 @@ export const TaskRow: React.FC<TaskRowProps> = ({
 }) => {
   const { colors, typography, spacing, borderRadius, shadow } = useTheme();
   const [showContextMenu, setShowContextMenu] = useState(false);
-  const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate spacing based on view density
   const getDensitySpacing = () => {
@@ -120,24 +119,6 @@ export const TaskRow: React.FC<TaskRowProps> = ({
   const handlePress = () => {
     haptics.light();
     onPress();
-  };
-
-  const handleLongPress = () => {
-    haptics.medium();
-    setShowContextMenu(true);
-  };
-
-  const handlePressIn = () => {
-    longPressTimeout.current = setTimeout(() => {
-      handleLongPress();
-    }, 500);
-  };
-
-  const handlePressOut = () => {
-    if (longPressTimeout.current) {
-      clearTimeout(longPressTimeout.current);
-      longPressTimeout.current = null;
-    }
   };
 
   const getContextMenuItems = (): ContextMenuItem[] => {
@@ -312,13 +293,11 @@ export const TaskRow: React.FC<TaskRowProps> = ({
           },
         ]}
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
         activeOpacity={0.7}
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel={getAccessibilityLabel()}
-        accessibilityHint="Double tap to view task details. Swipe left for quick actions. Long press for more options."
+        accessibilityHint="Double tap to view task details. Swipe left for quick actions. Tap menu button for more options."
         accessibilityState={{
           checked: task.status === 'completed',
         }}
@@ -390,6 +369,21 @@ export const TaskRow: React.FC<TaskRowProps> = ({
                   </Text>
                 </TouchableOpacity>
               )}
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.medium();
+                  setShowContextMenu(true);
+                }}
+                style={styles.menuButton}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="More options"
+                accessibilityHint="Double tap to show task options"
+              >
+                <Text style={[styles.menuIcon, { fontSize: densitySpacing.checkboxSize, color: colors.secondaryText }]}>
+                  ⋯
+                </Text>
+              </TouchableOpacity>
               <View
                 style={[
                   styles.priorityIndicator,
@@ -499,6 +493,14 @@ const styles = StyleSheet.create({
   },
   flagIcon: {
     color: '#FFD700',
+  },
+  menuButton: {
+    paddingHorizontal: 4,
+    marginRight: 4,
+    marginTop: -2,
+  },
+  menuIcon: {
+    fontWeight: '700',
   },
   metadata: {
     flexDirection: 'row',
