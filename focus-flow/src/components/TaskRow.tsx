@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Swipeable, LongPressGestureHandler, State, TapGestureHandler } from 'react-native-gesture-handler';
+import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { haptics } from '../utils/haptics';
 import { Task, TaskPriority, TaskStatus } from '../types';
 import { useTheme } from '../theme/useTheme';
@@ -31,6 +31,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
 }) => {
   const { colors, typography, spacing, borderRadius, shadow } = useTheme();
   const [showContextMenu, setShowContextMenu] = useState(false);
+  const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate spacing based on view density
   const getDensitySpacing = () => {
@@ -116,17 +117,26 @@ export const TaskRow: React.FC<TaskRowProps> = ({
     onDelete?.();
   };
 
-  const onTapGestureEvent = (event: any) => {
-    if (event.nativeEvent.state === State.END) {
-      haptics.light();
-      onPress();
-    }
+  const handlePress = () => {
+    haptics.light();
+    onPress();
   };
 
-  const onLongPressGestureEvent = (event: any) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
-      haptics.medium();
-      setShowContextMenu(true);
+  const handleLongPress = () => {
+    haptics.medium();
+    setShowContextMenu(true);
+  };
+
+  const handlePressIn = () => {
+    longPressTimeout.current = setTimeout(() => {
+      handleLongPress();
+    }, 500);
+  };
+
+  const handlePressOut = () => {
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
     }
   };
 
@@ -291,26 +301,28 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       rightThreshold={40}
       overshootRight={false}
     >
-      <LongPressGestureHandler
-        onHandlerStateChange={onLongPressGestureEvent}
-        minDurationMs={500}
+      <TouchableOpacity
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.separator,
+            marginVertical: densitySpacing.marginVertical,
+            ...shadow.sm,
+          },
+        ]}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.7}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={getAccessibilityLabel()}
+        accessibilityHint="Double tap to view task details. Swipe left for quick actions. Long press for more options."
+        accessibilityState={{
+          checked: task.status === 'completed',
+        }}
       >
-        <TapGestureHandler onHandlerStateChange={onTapGestureEvent}>
-          <Animated.View
-            style={[
-              styles.container,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.separator,
-                marginVertical: densitySpacing.marginVertical,
-                ...shadow.sm,
-              },
-            ]}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={getAccessibilityLabel()}
-            accessibilityHint="Double tap to view task details. Swipe left for quick actions. Long press for more options."
-          >
         <View style={[styles.content, {
           padding: densitySpacing.verticalPadding,
           paddingHorizontal: densitySpacing.horizontalPadding,
@@ -432,9 +444,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
             )}
           </View>
         </View>
-          </Animated.View>
-        </TapGestureHandler>
-      </LongPressGestureHandler>
+      </TouchableOpacity>
       <ContextMenu
         visible={showContextMenu}
         onClose={() => setShowContextMenu(false)}
