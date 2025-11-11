@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, Project, FocusArea, TaskStatus, TaskPriority } from '../types';
+import { Task, Project, FocusArea, TaskStatus, TaskPriority, DailyPlan } from '../types';
+import { getNextOccurrence, shouldGenerateNextInstance } from '../utils/recurrence';
 
 interface TaskStore {
   tasks: Task[];
@@ -11,6 +12,7 @@ interface TaskStore {
   dailyGoal: number;
   focusedTaskIds: string[];
   lastPromptDate: Date | null;
+  dailyPlan: DailyPlan | null;
 
   // Task actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>) => void;
@@ -19,6 +21,7 @@ interface TaskStore {
   toggleTaskComplete: (id: string) => void;
   toggleTaskFlag: (id: string) => void;
   bulkAddTasks: (tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[]) => void;
+  generateNextRecurringInstance: (taskId: string) => void;
 
   // Project actions
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>) => void;
@@ -37,6 +40,7 @@ interface TaskStore {
 
   // Daily focus actions
   setDailyFocus: (goal: number, taskIds: string[]) => void;
+  setDailyPlan: (plan: DailyPlan) => void;
   clearDailyFocus: () => void;
   shouldShowDailyPrompt: () => boolean;
   markPromptShown: () => void;
@@ -58,6 +62,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   dailyGoal: 0,
   focusedTaskIds: [],
   lastPromptDate: null,
+  dailyPlan: null,
 
   addTask: (taskData) => {
     const newTask: Task = {
@@ -94,14 +99,37 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   toggleTaskComplete: (id) => {
+    const task = get().tasks.find((t) => t.id === id);
+
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              status: t.status === 'completed' ? 'todo' : 'completed',
+              completedDate: t.status === 'completed' ? undefined : new Date(),
+              progress: t.status === 'completed' ? 0 : 100,
+              updatedAt: new Date(),
+            }
+          : t
+      ),
+    }));
+
+    // If completing a recurring task, generate the next instance
+    if (task && task.status !== 'completed' && task.isRecurring && task.recurrence) {
+      get().generateNextRecurringInstance(id);
+    }
+
+    get().saveData();
+  },
+
+  toggleTaskFlag: (id) => {
     set((state) => ({
       tasks: state.tasks.map((task) =>
         task.id === id
           ? {
               ...task,
-              status: task.status === 'completed' ? 'todo' : 'completed',
-              completedDate: task.status === 'completed' ? undefined : new Date(),
-              progress: task.status === 'completed' ? 0 : 100,
+              isFlagged: !task.isFlagged,
               updatedAt: new Date(),
             }
           : task
@@ -244,10 +272,21 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     get().saveData();
   },
 
+  setDailyPlan: (plan) => {
+    set({
+      dailyPlan: plan,
+      dailyGoal: plan.taskIds.length,
+      focusedTaskIds: plan.taskIds,
+      lastPromptDate: new Date(),
+    });
+    get().saveData();
+  },
+
   clearDailyFocus: () => {
     set({
       dailyGoal: 0,
       focusedTaskIds: [],
+      dailyPlan: null,
     });
     get().saveData();
   },
@@ -317,6 +356,53 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set((state) => ({ tasks: [...state.tasks, ...newTasks] }));
   },
 
+  generateNextRecurringInstance: (taskId) => {
+    const task = get().tasks.find((t) => t.id === taskId);
+
+    if (!task || !task.isRecurring || !task.recurrence) {
+      return;
+    }
+
+    // Count completed instances of this recurring task
+    const completedCount = get().tasks.filter(
+      (t) => (t.parentRecurringTaskId === taskId || t.id === taskId) && t.status === 'completed'
+    ).length;
+
+    // Check if we should generate the next instance
+    if (!shouldGenerateNextInstance(task.recurrence, completedCount)) {
+      return;
+    }
+
+    // Calculate the next occurrence date
+    const baseDate = task.dueDate || task.recurringInstanceDate || new Date();
+    const nextDate = getNextOccurrence(baseDate, task.recurrence);
+
+    if (!nextDate) {
+      return;
+    }
+
+    // Create a new task instance
+    const newTask: Task = {
+      ...task,
+      id: generateId(),
+      status: 'todo',
+      completedDate: undefined,
+      progress: 0,
+      dueDate: nextDate,
+      recurringInstanceDate: nextDate,
+      parentRecurringTaskId: taskId,
+      order: get().tasks.length,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    set((state) => ({
+      tasks: [...state.tasks, newTask],
+    }));
+
+    get().saveData();
+  },
+
   loadData: async () => {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
@@ -352,7 +438,17 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const focusedTaskIds = parsed.focusedTaskIds || [];
         const lastPromptDate = parsed.lastPromptDate ? new Date(parsed.lastPromptDate) : null;
 
-        set({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate });
+        const dailyPlan = parsed.dailyPlan ? {
+          ...parsed.dailyPlan,
+          timeBlocks: parsed.dailyPlan.timeBlocks?.map((block: any) => ({
+            ...block,
+            startTime: new Date(block.startTime),
+            endTime: new Date(block.endTime),
+          })) || [],
+          createdAt: new Date(parsed.dailyPlan.createdAt),
+        } : null;
+
+        set({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan });
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -361,10 +457,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   saveData: async () => {
     try {
-      const { tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate } = get();
+      const { tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan } = get();
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate })
+        JSON.stringify({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan })
       );
     } catch (error) {
       console.error('Error saving data:', error);

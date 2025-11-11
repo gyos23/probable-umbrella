@@ -16,8 +16,8 @@ export const CelebrationConfetti: React.FC<CelebrationConfettiProps> = ({
 
   useEffect(() => {
     if (trigger) {
-      // Trigger haptic feedback (automatically handles web)
-      haptics.success();
+      // Trigger celebration haptic feedback (automatically handles web)
+      haptics.celebration();
 
       // Start confetti
       confettiRef.current?.start();

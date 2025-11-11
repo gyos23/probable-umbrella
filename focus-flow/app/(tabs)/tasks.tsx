@@ -29,6 +29,7 @@ export default function TasksScreen() {
   const { colors, typography, spacing, reduceMotion } = useTheme();
   const tasks = useTaskStore((state) => state.tasks);
   const addTask = useTaskStore((state) => state.addTask);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
   const toggleTaskFlag = useTaskStore((state) => state.toggleTaskFlag);
   const deleteTask = useTaskStore((state) => state.deleteTask);
@@ -70,7 +71,7 @@ export default function TasksScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    haptics.light();
+    haptics.refresh();
     await loadData();
     setTimeout(() => setRefreshing(false), 500);
   };
@@ -285,6 +286,8 @@ export default function TasksScreen() {
             onToggleComplete={() => toggleTaskComplete(item.id)}
             onToggleFlag={() => toggleTaskFlag(item.id)}
             onDelete={() => deleteTask(item.id)}
+            onChangeStatus={(status) => updateTask(item.id, { status })}
+            onChangePriority={(priority) => updateTask(item.id, { priority })}
             density={viewDensity}
           />
         )}

@@ -44,7 +44,10 @@ export default function ProjectDetailScreen() {
   const deleteProject = useTaskStore((state) => state.deleteProject);
   const addProject = useTaskStore((state) => state.addProject);
   const addTask = useTaskStore((state) => state.addTask);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
+  const toggleTaskFlag = useTaskStore((state) => state.toggleTaskFlag);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
 
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
@@ -204,6 +207,90 @@ export default function ProjectDetailScreen() {
             numberOfLines={4}
           />
         </View>
+
+        {/* SMART Framework Display */}
+        {project.smartFramework && (
+          <View style={[styles.smartFrameworkSection, { backgroundColor: colors.tertiaryBackground, borderColor: colors.primary, marginTop: spacing.md }]}>
+            <View style={styles.smartHeader}>
+              <Text style={[styles.smartTitle, { color: colors.text, ...typography.title3 }]}>
+                🎯 SMART Goal Framework
+              </Text>
+              <Text style={[styles.smartSubtitle, { color: colors.secondaryText, ...typography.caption1 }]}>
+                Your structured goal breakdown
+              </Text>
+            </View>
+
+            <View style={[styles.smartItem, { backgroundColor: colors.background }]}>
+              <View style={styles.smartItemHeader}>
+                <View style={[styles.smartBadge, { backgroundColor: colors.blue }]}>
+                  <Text style={styles.smartBadgeText}>S</Text>
+                </View>
+                <Text style={[styles.smartItemTitle, { color: colors.text, ...typography.subheadline }]}>
+                  Specific
+                </Text>
+              </View>
+              <Text style={[styles.smartItemContent, { color: colors.secondaryText, ...typography.body }]}>
+                {project.smartFramework.specific}
+              </Text>
+            </View>
+
+            <View style={[styles.smartItem, { backgroundColor: colors.background }]}>
+              <View style={styles.smartItemHeader}>
+                <View style={[styles.smartBadge, { backgroundColor: colors.green }]}>
+                  <Text style={styles.smartBadgeText}>M</Text>
+                </View>
+                <Text style={[styles.smartItemTitle, { color: colors.text, ...typography.subheadline }]}>
+                  Measurable
+                </Text>
+              </View>
+              <Text style={[styles.smartItemContent, { color: colors.secondaryText, ...typography.body }]}>
+                {project.smartFramework.measurable}
+              </Text>
+            </View>
+
+            <View style={[styles.smartItem, { backgroundColor: colors.background }]}>
+              <View style={styles.smartItemHeader}>
+                <View style={[styles.smartBadge, { backgroundColor: colors.orange }]}>
+                  <Text style={styles.smartBadgeText}>A</Text>
+                </View>
+                <Text style={[styles.smartItemTitle, { color: colors.text, ...typography.subheadline }]}>
+                  Achievable
+                </Text>
+              </View>
+              <Text style={[styles.smartItemContent, { color: colors.secondaryText, ...typography.body }]}>
+                {project.smartFramework.achievable}
+              </Text>
+            </View>
+
+            <View style={[styles.smartItem, { backgroundColor: colors.background }]}>
+              <View style={styles.smartItemHeader}>
+                <View style={[styles.smartBadge, { backgroundColor: colors.purple }]}>
+                  <Text style={styles.smartBadgeText}>R</Text>
+                </View>
+                <Text style={[styles.smartItemTitle, { color: colors.text, ...typography.subheadline }]}>
+                  Relevant
+                </Text>
+              </View>
+              <Text style={[styles.smartItemContent, { color: colors.secondaryText, ...typography.body }]}>
+                {project.smartFramework.relevant}
+              </Text>
+            </View>
+
+            <View style={[styles.smartItem, { backgroundColor: colors.background }]}>
+              <View style={styles.smartItemHeader}>
+                <View style={[styles.smartBadge, { backgroundColor: colors.red }]}>
+                  <Text style={styles.smartBadgeText}>T</Text>
+                </View>
+                <Text style={[styles.smartItemTitle, { color: colors.text, ...typography.subheadline }]}>
+                  Time-bound
+                </Text>
+              </View>
+              <Text style={[styles.smartItemContent, { color: colors.secondaryText, ...typography.body }]}>
+                {project.smartFramework.timeBound}
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.optionsSection}>
           <Text style={[styles.sectionTitle, { color: colors.text, ...typography.headline }]}>
@@ -423,6 +510,10 @@ export default function ProjectDetailScreen() {
                   task={item}
                   onPress={() => router.push(`/task/${item.id}`)}
                   onToggleComplete={() => toggleTaskComplete(item.id)}
+                  onToggleFlag={() => toggleTaskFlag(item.id)}
+                  onDelete={() => deleteTask(item.id)}
+                  onChangeStatus={(status) => updateTask(item.id, { status })}
+                  onChangePriority={(priority) => updateTask(item.id, { priority })}
                 />
               )}
             />
@@ -846,5 +937,53 @@ const styles = StyleSheet.create({
   addButtonTextModal: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  smartFrameworkSection: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+  },
+  smartHeader: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  smartTitle: {
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  smartSubtitle: {
+    fontStyle: 'italic',
+  },
+  smartItem: {
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  smartItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  smartBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  smartBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  smartItemTitle: {
+    fontWeight: '600',
+  },
+  smartItemContent: {
+    lineHeight: 20,
+    marginLeft: 38,
   },
 });

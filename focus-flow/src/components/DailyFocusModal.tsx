@@ -6,21 +6,29 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Pressable,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { haptics } from '../utils/haptics';
 import { useTheme } from '../theme/useTheme';
 import { useTaskStore } from '../store/taskStore';
-import { Task } from '../types';
+import { Task, TaskPriority, TimeBlock } from '../types';
 import { formatDate } from '../utils/dateUtils';
+import { TimeBoxCalendar } from './TimeBoxCalendar';
+import { addMinutes, setHours, setMinutes } from 'date-fns';
 
 interface DailyFocusModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-type Step = 'welcome' | 'goal' | 'select' | 'confirm';
+type Step = 'welcome' | 'select' | 'priority' | 'duration' | 'breaks' | 'calendar';
+
+interface TaskPlan {
+  taskId: string;
+  priority: TaskPriority;
+  estimatedMinutes: number;
+}
 
 export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
   visible,
@@ -28,11 +36,14 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
 }) => {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const [step, setStep] = useState<Step>('welcome');
-  const [goalCount, setGoalCount] = useState(3);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [taskPlans, setTaskPlans] = useState<Map<string, TaskPlan>>(new Map());
+  const [breakDuration, setBreakDuration] = useState(15); // minutes
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
 
   const tasks = useTaskStore((state) => state.tasks);
-  const setDailyFocus = useTaskStore((state) => state.setDailyFocus);
+  const updateTask = useTaskStore((state) => state.updateTask);
+  const setDailyPlan = useTaskStore((state) => state.setDailyPlan);
   const markPromptShown = useTaskStore((state) => state.markPromptShown);
 
   // Only show incomplete tasks
@@ -40,12 +51,23 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
     return tasks.filter((t) => t.status !== 'completed' && t.status !== 'deferred');
   }, [tasks]);
 
+  const selectedTasks = useMemo(() => {
+    return tasks.filter((t) => selectedTaskIds.includes(t.id));
+  }, [tasks, selectedTaskIds]);
+
   const handleClose = () => {
     // Mark as shown even if dismissed
     markPromptShown();
+    resetModal();
+    onClose();
+  };
+
+  const resetModal = () => {
     setStep('welcome');
     setSelectedTaskIds([]);
-    onClose();
+    setTaskPlans(new Map());
+    setBreakDuration(15);
+    setCurrentTaskIndex(0);
   };
 
   const handleSkip = () => {
@@ -56,22 +78,52 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
   const handleContinue = () => {
     haptics.light();
     if (step === 'welcome') {
-      setStep('goal');
-    } else if (step === 'goal') {
       setStep('select');
     } else if (step === 'select') {
-      setStep('confirm');
+      setCurrentTaskIndex(0);
+      setStep('priority');
+    } else if (step === 'priority') {
+      // Move to next task or duration step
+      if (currentTaskIndex < selectedTaskIds.length - 1) {
+        setCurrentTaskIndex(currentTaskIndex + 1);
+      } else {
+        setCurrentTaskIndex(0);
+        setStep('duration');
+      }
+    } else if (step === 'duration') {
+      // Move to next task or breaks step
+      if (currentTaskIndex < selectedTaskIds.length - 1) {
+        setCurrentTaskIndex(currentTaskIndex + 1);
+      } else {
+        setStep('breaks');
+      }
+    } else if (step === 'breaks') {
+      setStep('calendar');
     }
   };
 
   const handleBack = () => {
     haptics.light();
-    if (step === 'goal') {
+    if (step === 'select') {
       setStep('welcome');
-    } else if (step === 'select') {
-      setStep('goal');
-    } else if (step === 'confirm') {
-      setStep('select');
+    } else if (step === 'priority') {
+      if (currentTaskIndex > 0) {
+        setCurrentTaskIndex(currentTaskIndex - 1);
+      } else {
+        setStep('select');
+      }
+    } else if (step === 'duration') {
+      if (currentTaskIndex > 0) {
+        setCurrentTaskIndex(currentTaskIndex - 1);
+      } else {
+        setCurrentTaskIndex(selectedTaskIds.length - 1);
+        setStep('priority');
+      }
+    } else if (step === 'breaks') {
+      setCurrentTaskIndex(selectedTaskIds.length - 1);
+      setStep('duration');
+    } else if (step === 'calendar') {
+      setStep('breaks');
     }
   };
 
@@ -81,18 +133,93 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
       if (prev.includes(taskId)) {
         return prev.filter((id) => id !== taskId);
       } else {
-        // Only allow selection up to goal count
-        if (prev.length >= goalCount) {
-          return prev;
-        }
         return [...prev, taskId];
       }
     });
   };
 
+  const handleSetPriority = (taskId: string, priority: TaskPriority) => {
+    haptics.selection();
+    setTaskPlans((prev) => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(taskId) || { taskId, priority: 'medium', estimatedMinutes: 30 };
+      newMap.set(taskId, { ...existing, priority });
+      return newMap;
+    });
+  };
+
+  const handleSetDuration = (taskId: string, minutes: number) => {
+    setTaskPlans((prev) => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(taskId) || { taskId, priority: 'medium', estimatedMinutes: 30 };
+      newMap.set(taskId, { ...existing, estimatedMinutes: minutes });
+      return newMap;
+    });
+  };
+
+  const generateTimeBlocks = (): TimeBlock[] => {
+    // Start at 9 AM by default
+    const startDate = new Date();
+    let currentTime = setMinutes(setHours(startDate, 9), 0);
+    const blocks: TimeBlock[] = [];
+
+    // Sort tasks by priority
+    const sortedTaskIds = [...selectedTaskIds].sort((a, b) => {
+      const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      const planA = taskPlans.get(a);
+      const planB = taskPlans.get(b);
+      return priorityOrder[planA?.priority || 'medium'] - priorityOrder[planB?.priority || 'medium'];
+    });
+
+    sortedTaskIds.forEach((taskId, index) => {
+      const plan = taskPlans.get(taskId);
+      if (!plan) return;
+
+      const duration = plan.estimatedMinutes;
+      const endTime = addMinutes(currentTime, duration);
+
+      blocks.push({
+        taskId,
+        startTime: new Date(currentTime),
+        endTime,
+        duration,
+      });
+
+      // Add break time for next task
+      if (index < sortedTaskIds.length - 1) {
+        currentTime = addMinutes(endTime, breakDuration);
+      }
+    });
+
+    return blocks;
+  };
+
   const handleConfirm = () => {
     haptics.success();
-    setDailyFocus(goalCount, selectedTaskIds);
+
+    const timeBlocks = generateTimeBlocks();
+
+    // Update tasks with priority and estimated duration
+    selectedTaskIds.forEach((taskId) => {
+      const plan = taskPlans.get(taskId);
+      if (plan) {
+        updateTask(taskId, {
+          priority: plan.priority,
+          estimatedDuration: plan.estimatedMinutes / 60, // convert to hours for storage
+        });
+      }
+    });
+
+    // Save the daily plan
+    setDailyPlan({
+      date: new Date().toISOString().split('T')[0],
+      timeBlocks,
+      breakDuration,
+      totalWorkTime: timeBlocks.reduce((sum, block) => sum + block.duration, 0),
+      taskIds: timeBlocks.map((block) => block.taskId),
+      createdAt: new Date(),
+    });
+
     handleClose();
   };
 
@@ -108,26 +235,26 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
           { color: colors.secondaryText, ...typography.body },
         ]}
       >
-        Let's plan your day. Take a moment to choose what you want to accomplish today.
+        Let's create a realistic plan for your day. I'll help you schedule tasks based on priority and time estimates.
       </Text>
 
       <View style={styles.benefitsContainer}>
         <View style={styles.benefitRow}>
-          <Text style={styles.benefitEmoji}>🎯</Text>
-          <Text style={[styles.benefitText, { color: colors.text, ...typography.body }]}>
-            Focus on what matters most
-          </Text>
-        </View>
-        <View style={styles.benefitRow}>
-          <Text style={styles.benefitEmoji}>✨</Text>
-          <Text style={[styles.benefitText, { color: colors.text, ...typography.body }]}>
-            Feel accomplished at end of day
-          </Text>
-        </View>
-        <View style={styles.benefitRow}>
           <Text style={styles.benefitEmoji}>⚡</Text>
           <Text style={[styles.benefitText, { color: colors.text, ...typography.body }]}>
-            Build momentum daily
+            Prioritize what matters most
+          </Text>
+        </View>
+        <View style={styles.benefitRow}>
+          <Text style={styles.benefitEmoji}>⏰</Text>
+          <Text style={[styles.benefitText, { color: colors.text, ...typography.body }]}>
+            Set realistic time estimates
+          </Text>
+        </View>
+        <View style={styles.benefitRow}>
+          <Text style={styles.benefitEmoji}>📅</Text>
+          <Text style={[styles.benefitText, { color: colors.text, ...typography.body }]}>
+            See your day time-boxed on a calendar
           </Text>
         </View>
       </View>
@@ -163,92 +290,11 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
     </View>
   );
 
-  const renderGoal = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.emoji}>🎯</Text>
-      <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
-        How many tasks today?
-      </Text>
-      <Text
-        style={[
-          styles.description,
-          { color: colors.secondaryText, ...typography.body },
-        ]}
-      >
-        Choose a realistic number. It's better to complete 3 tasks than leave 10 unfinished.
-      </Text>
-
-      <View style={styles.numberPicker}>
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-          <TouchableOpacity
-            key={num}
-            style={[
-              styles.numberButton,
-              {
-                backgroundColor:
-                  goalCount === num ? colors.primary : colors.secondaryBackground,
-                borderRadius: borderRadius.md,
-              },
-            ]}
-            onPress={() => {
-              haptics.selection();
-              setGoalCount(num);
-            }}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={`${num} task${num > 1 ? 's' : ''}`}
-            accessibilityState={{ selected: goalCount === num }}
-          >
-            <Text
-              style={[
-                styles.numberText,
-                {
-                  color: goalCount === num ? '#FFFFFF' : colors.text,
-                  ...typography.title1,
-                },
-              ]}
-            >
-              {num}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[
-            styles.primaryButton,
-            { backgroundColor: colors.primary, borderRadius: borderRadius.md },
-          ]}
-          onPress={handleContinue}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={`Continue with ${goalCount} task${goalCount > 1 ? 's' : ''}`}
-        >
-          <Text style={[styles.primaryButtonText, typography.headline]}>
-            Continue
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.textButton}
-          onPress={handleBack}
-          accessible={true}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.textButtonText, { color: colors.secondaryText, ...typography.body }]}>
-            Back
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   const renderSelect = () => (
     <View style={[styles.stepContainer, { paddingHorizontal: 0 }]}>
       <View style={{ paddingHorizontal: spacing.lg }}>
         <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
-          Choose {goalCount} task{goalCount > 1 ? 's' : ''}
+          Select Today's Tasks
         </Text>
         <Text
           style={[
@@ -256,7 +302,7 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
             { color: colors.secondaryText, ...typography.body },
           ]}
         >
-          {selectedTaskIds.length} of {goalCount} selected
+          Choose the tasks you want to work on today. {selectedTaskIds.length} selected
         </Text>
       </View>
 
@@ -283,7 +329,6 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
                 },
               ]}
               onPress={() => handleTaskToggle(task.id)}
-              disabled={!selectedTaskIds.includes(task.id) && selectedTaskIds.length >= goalCount}
               accessible={true}
               accessibilityRole="checkbox"
               accessibilityLabel={task.title}
@@ -325,24 +370,6 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
                   </Text>
                 )}
               </View>
-
-              {task.priority && (
-                <View
-                  style={[
-                    styles.priorityDot,
-                    {
-                      backgroundColor:
-                        task.priority === 'critical'
-                          ? colors.red
-                          : task.priority === 'high'
-                          ? colors.orange
-                          : task.priority === 'medium'
-                          ? colors.yellow
-                          : colors.blue,
-                    },
-                  ]}
-                />
-              )}
             </TouchableOpacity>
           ))
         )}
@@ -354,15 +381,15 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
             styles.primaryButton,
             {
               backgroundColor:
-                selectedTaskIds.length === goalCount ? colors.primary : colors.quaternaryText,
+                selectedTaskIds.length > 0 ? colors.primary : colors.quaternaryText,
               borderRadius: borderRadius.md,
             },
           ]}
           onPress={handleContinue}
-          disabled={selectedTaskIds.length !== goalCount}
+          disabled={selectedTaskIds.length === 0}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Continue to confirmation"
+          accessibilityLabel="Continue to set priorities"
         >
           <Text style={[styles.primaryButtonText, typography.headline]}>
             Continue
@@ -383,14 +410,25 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
     </View>
   );
 
-  const renderConfirm = () => {
-    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
+  const renderPriority = () => {
+    const taskId = selectedTaskIds[currentTaskIndex];
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return null;
+
+    const currentPlan = taskPlans.get(taskId);
+    const selectedPriority = currentPlan?.priority || task.priority || 'medium';
+
+    const priorities: Array<{ value: TaskPriority; label: string; color: string; emoji: string }> = [
+      { value: 'critical', label: 'Critical', color: colors.red, emoji: '🔴' },
+      { value: 'high', label: 'High', color: colors.orange, emoji: '🟠' },
+      { value: 'medium', label: 'Medium', color: colors.yellow, emoji: '🟡' },
+      { value: 'low', label: 'Low', color: colors.blue, emoji: '🔵' },
+    ];
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.emoji}>🎉</Text>
         <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
-          Your focus for today
+          Set Priority
         </Text>
         <Text
           style={[
@@ -398,30 +436,54 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
             { color: colors.secondaryText, ...typography.body },
           ]}
         >
-          You've chosen {goalCount} task{goalCount > 1 ? 's' : ''} to complete today. You've got
-          this!
+          Task {currentTaskIndex + 1} of {selectedTaskIds.length}
         </Text>
 
-        <ScrollView style={styles.confirmList}>
-          {selectedTasks.map((task, index) => (
-            <View
-              key={task.id}
+        <View style={[styles.taskCard, { backgroundColor: colors.secondaryBackground }]}>
+          <Text style={[styles.taskCardTitle, { color: colors.text, ...typography.headline }]}>
+            {task.title}
+          </Text>
+        </View>
+
+        <View style={styles.priorityGrid}>
+          {priorities.map((priority) => (
+            <TouchableOpacity
+              key={priority.value}
               style={[
-                styles.confirmItem,
-                { backgroundColor: colors.secondaryBackground, borderRadius: borderRadius.sm },
+                styles.priorityCard,
+                {
+                  backgroundColor:
+                    selectedPriority === priority.value
+                      ? priority.color
+                      : colors.secondaryBackground,
+                  borderColor:
+                    selectedPriority === priority.value
+                      ? priority.color
+                      : colors.separator,
+                },
               ]}
+              onPress={() => handleSetPriority(taskId, priority.value)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`${priority.label} priority`}
+              accessibilityState={{ selected: selectedPriority === priority.value }}
             >
-              <View style={[styles.confirmNumber, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.confirmNumberText, typography.headline]}>
-                  {index + 1}
-                </Text>
-              </View>
-              <Text style={[styles.confirmTaskTitle, { color: colors.text, ...typography.body }]}>
-                {task.title}
+              <Text style={styles.priorityEmoji}>{priority.emoji}</Text>
+              <Text
+                style={[
+                  styles.priorityLabel,
+                  {
+                    color:
+                      selectedPriority === priority.value ? '#FFFFFF' : colors.text,
+                    ...typography.subheadline,
+                  },
+                ]}
+              >
+                {priority.label}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
@@ -429,13 +491,12 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
               styles.primaryButton,
               { backgroundColor: colors.primary, borderRadius: borderRadius.md },
             ]}
-            onPress={handleConfirm}
+            onPress={handleContinue}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Confirm and start your day"
           >
             <Text style={[styles.primaryButtonText, typography.headline]}>
-              Let's Do This! 🚀
+              {currentTaskIndex < selectedTaskIds.length - 1 ? 'Next Task' : 'Continue'}
             </Text>
           </TouchableOpacity>
 
@@ -447,12 +508,281 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
           >
             <Text style={[styles.textButtonText, { color: colors.secondaryText, ...typography.body }]}>
               Back
-          </Text>
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   };
+
+  const renderDuration = () => {
+    const taskId = selectedTaskIds[currentTaskIndex];
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return null;
+
+    const currentPlan = taskPlans.get(taskId);
+    const estimatedMinutes =
+      currentPlan?.estimatedMinutes ||
+      (task.estimatedDuration ? task.estimatedDuration * 60 : 30);
+
+    const durations = [15, 30, 45, 60, 90, 120, 180, 240];
+
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
+          Estimate Time
+        </Text>
+        <Text
+          style={[
+            styles.description,
+            { color: colors.secondaryText, ...typography.body },
+          ]}
+        >
+          Task {currentTaskIndex + 1} of {selectedTaskIds.length}
+        </Text>
+
+        <View style={[styles.taskCard, { backgroundColor: colors.secondaryBackground }]}>
+          <Text style={[styles.taskCardTitle, { color: colors.text, ...typography.headline }]}>
+            {task.title}
+          </Text>
+        </View>
+
+        <View style={styles.durationGrid}>
+          {durations.map((minutes) => (
+            <TouchableOpacity
+              key={minutes}
+              style={[
+                styles.durationButton,
+                {
+                  backgroundColor:
+                    estimatedMinutes === minutes
+                      ? colors.primary
+                      : colors.secondaryBackground,
+                  borderColor:
+                    estimatedMinutes === minutes ? colors.primary : colors.separator,
+                  borderRadius: borderRadius.md,
+                },
+              ]}
+              onPress={() => {
+                haptics.selection();
+                handleSetDuration(taskId, minutes);
+              }}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`${minutes} minutes`}
+              accessibilityState={{ selected: estimatedMinutes === minutes }}
+            >
+              <Text
+                style={[
+                  styles.durationText,
+                  {
+                    color: estimatedMinutes === minutes ? '#FFFFFF' : colors.text,
+                    ...typography.headline,
+                  },
+                ]}
+              >
+                {minutes < 60 ? `${minutes}m` : `${minutes / 60}h`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={[styles.customInput, { backgroundColor: colors.secondaryBackground }]}>
+          <Text style={[styles.customLabel, { color: colors.secondaryText, ...typography.body }]}>
+            Custom (minutes):
+          </Text>
+          <TextInput
+            style={[styles.customTextInput, { color: colors.text, ...typography.headline }]}
+            keyboardType="number-pad"
+            value={String(estimatedMinutes)}
+            onChangeText={(text) => {
+              const num = parseInt(text) || 0;
+              if (num > 0 && num <= 480) {
+                handleSetDuration(taskId, num);
+              }
+            }}
+            maxLength={3}
+          />
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { backgroundColor: colors.primary, borderRadius: borderRadius.md },
+            ]}
+            onPress={handleContinue}
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.primaryButtonText, typography.headline]}>
+              {currentTaskIndex < selectedTaskIds.length - 1 ? 'Next Task' : 'Continue'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.textButton}
+            onPress={handleBack}
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.textButtonText, { color: colors.secondaryText, ...typography.body }]}>
+              Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderBreaks = () => {
+    const breakOptions = [0, 5, 10, 15, 20, 30];
+
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={styles.emoji}>☕</Text>
+        <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
+          Break Time
+        </Text>
+        <Text
+          style={[
+            styles.description,
+            { color: colors.secondaryText, ...typography.body },
+          ]}
+        >
+          How long do you want to rest between tasks? Regular breaks help maintain focus and energy.
+        </Text>
+
+        <View style={styles.breakGrid}>
+          {breakOptions.map((minutes) => (
+            <TouchableOpacity
+              key={minutes}
+              style={[
+                styles.breakButton,
+                {
+                  backgroundColor:
+                    breakDuration === minutes
+                      ? colors.primary
+                      : colors.secondaryBackground,
+                  borderColor:
+                    breakDuration === minutes ? colors.primary : colors.separator,
+                  borderRadius: borderRadius.md,
+                },
+              ]}
+              onPress={() => {
+                haptics.selection();
+                setBreakDuration(minutes);
+              }}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={minutes === 0 ? 'No breaks' : `${minutes} minutes`}
+              accessibilityState={{ selected: breakDuration === minutes }}
+            >
+              <Text
+                style={[
+                  styles.breakText,
+                  {
+                    color: breakDuration === minutes ? '#FFFFFF' : colors.text,
+                    ...typography.headline,
+                  },
+                ]}
+              >
+                {minutes === 0 ? 'None' : `${minutes}m`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { backgroundColor: colors.primary, borderRadius: borderRadius.md },
+            ]}
+            onPress={handleContinue}
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.primaryButtonText, typography.headline]}>
+              See My Schedule
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.textButton}
+            onPress={handleBack}
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.textButtonText, { color: colors.secondaryText, ...typography.body }]}>
+              Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderCalendar = () => {
+    const timeBlocks = generateTimeBlocks();
+
+    return (
+      <View style={[styles.stepContainer, { paddingHorizontal: 0 }]}>
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
+            Your Schedule
+          </Text>
+          <Text
+            style={[
+              styles.description,
+              { color: colors.secondaryText, ...typography.body },
+            ]}
+          >
+            Here's your time-boxed plan for today. Tasks are ordered by priority.
+          </Text>
+        </View>
+
+        <View style={styles.calendarContainer}>
+          <TimeBoxCalendar
+            timeBlocks={timeBlocks}
+            tasks={selectedTasks}
+            breakDuration={breakDuration}
+          />
+        </View>
+
+        <View style={[styles.buttonContainer, { paddingHorizontal: spacing.lg }]}>
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { backgroundColor: colors.primary, borderRadius: borderRadius.md },
+            ]}
+            onPress={handleConfirm}
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.primaryButtonText, typography.headline]}>
+              Start My Day! 🚀
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.textButton}
+            onPress={handleBack}
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.textButtonText, { color: colors.secondaryText, ...typography.body }]}>
+              Adjust Plan
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const steps: Step[] = ['welcome', 'select', 'priority', 'duration', 'breaks', 'calendar'];
+  const currentStepIndex = steps.indexOf(step);
+  const totalSteps = steps.length;
 
   return (
     <Modal
@@ -464,18 +794,14 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <View style={styles.stepIndicator}>
-            {['welcome', 'goal', 'select', 'confirm'].map((s, i) => (
+            {steps.map((s, i) => (
               <View
                 key={s}
                 style={[
                   styles.stepDot,
                   {
                     backgroundColor:
-                      s === step
-                        ? colors.primary
-                        : ['welcome', 'goal', 'select', 'confirm'].indexOf(step) > i
-                        ? colors.primary
-                        : colors.tertiaryBackground,
+                      i <= currentStepIndex ? colors.primary : colors.tertiaryBackground,
                   },
                 ]}
               />
@@ -484,9 +810,11 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
         </View>
 
         {step === 'welcome' && renderWelcome()}
-        {step === 'goal' && renderGoal()}
         {step === 'select' && renderSelect()}
-        {step === 'confirm' && renderConfirm()}
+        {step === 'priority' && renderPriority()}
+        {step === 'duration' && renderDuration()}
+        {step === 'breaks' && renderBreaks()}
+        {step === 'calendar' && renderCalendar()}
       </SafeAreaView>
     </Modal>
   );
@@ -544,22 +872,6 @@ const styles = StyleSheet.create({
   benefitText: {
     flex: 1,
   },
-  numberPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 32,
-  },
-  numberButton: {
-    width: 72,
-    height: 72,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  numberText: {
-    fontWeight: '600',
-  },
   taskList: {
     flex: 1,
     marginVertical: 16,
@@ -596,12 +908,6 @@ const styles = StyleSheet.create({
   taskMeta: {
     fontSize: 11,
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
   emptyState: {
     padding: 48,
     alignItems: 'center',
@@ -609,30 +915,90 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
   },
-  confirmList: {
-    flex: 1,
-    marginVertical: 16,
-  },
-  confirmItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  taskCard: {
     padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 24,
   },
-  confirmNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  taskCardTitle: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  priorityGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 32,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
   },
-  confirmNumberText: {
-    color: '#FFFFFF',
+  priorityCard: {
+    width: '45%',
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  priorityEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  priorityLabel: {
     fontWeight: '600',
   },
-  confirmTaskTitle: {
+  durationGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  durationButton: {
+    width: '22%',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  durationText: {
+    fontWeight: '600',
+  },
+  customInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 32,
+  },
+  customLabel: {
+    fontWeight: '500',
+  },
+  customTextInput: {
+    fontWeight: '600',
+    textAlign: 'right',
+    minWidth: 60,
+  },
+  breakGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 32,
+    justifyContent: 'center',
+  },
+  breakButton: {
+    width: '30%',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  breakText: {
+    fontWeight: '600',
+  },
+  calendarContainer: {
     flex: 1,
+    marginTop: 16,
+    paddingHorizontal: 24,
   },
   buttonContainer: {
     gap: 12,

@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
 import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { useTheme } from '../../src/theme/useTheme';
+import { haptics } from '../../src/utils/haptics';
 import {
   startOfMonth,
   endOfMonth,
@@ -22,11 +23,16 @@ import {
 export default function CalendarScreen() {
   const { colors, typography, spacing } = useTheme();
   const tasks = useTaskStore((state) => state.tasks);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
+  const toggleTaskFlag = useTaskStore((state) => state.toggleTaskFlag);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
+  const loadData = useTaskStore((state) => state.loadData);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth));
@@ -48,6 +54,13 @@ export default function CalendarScreen() {
         (task.dueDate && isSameDay(task.dueDate, date)) ||
         (task.plannedDate && isSameDay(task.plannedDate, date))
     );
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    haptics.refresh();
+    await loadData();
+    setTimeout(() => setRefreshing(false), 500);
   };
 
   const renderCalendarDay = (date: Date) => {
@@ -159,9 +172,20 @@ export default function CalendarScreen() {
               task={item}
               onPress={() => {}}
               onToggleComplete={() => toggleTaskComplete(item.id)}
+              onToggleFlag={() => toggleTaskFlag(item.id)}
+              onDelete={() => deleteTask(item.id)}
+              onChangeStatus={(status) => updateTask(item.id, { status })}
+              onChangePriority={(priority) => updateTask(item.id, { priority })}
             />
           )}
           contentContainerStyle={styles.tasksListContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.blue}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text
