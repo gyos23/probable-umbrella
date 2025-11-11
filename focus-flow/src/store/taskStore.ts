@@ -138,6 +138,21 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     get().saveData();
   },
 
+  toggleTaskFlag: (id) => {
+    set((state) => ({
+      tasks: state.tasks.map((task) =>
+        task.id === id
+          ? {
+              ...task,
+              isFlagged: !task.isFlagged,
+              updatedAt: new Date(),
+            }
+          : task
+      ),
+    }));
+    get().saveData();
+  },
+
   addProject: (projectData) => {
     const newProject: Project = {
       ...projectData,
