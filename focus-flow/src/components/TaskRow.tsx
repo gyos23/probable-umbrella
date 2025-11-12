@@ -51,7 +51,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
           verticalPadding: 16,
           horizontalPadding: 14,
           checkboxSize: 22,
-          marginVertical: 4,
+          marginVertical: 14.5,
           titleFontSize: 16,
           metadataGap: 6,
           badgePaddingV: 3,
