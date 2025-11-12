@@ -20,6 +20,7 @@ import { addMinutes, setHours, setMinutes } from 'date-fns';
 interface DailyFocusModalProps {
   visible: boolean;
   onClose: () => void;
+  startTime?: Date; // Optional: start time for time-boxing, defaults to current time
 }
 
 type Step = 'welcome' | 'select' | 'priority' | 'duration' | 'breaks' | 'calendar';
@@ -33,6 +34,7 @@ interface TaskPlan {
 export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
   visible,
   onClose,
+  startTime,
 }) => {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const [step, setStep] = useState<Step>('welcome');
@@ -158,9 +160,19 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
   };
 
   const generateTimeBlocks = (): TimeBlock[] => {
-    // Start at 9 AM by default
-    const startDate = new Date();
-    let currentTime = setMinutes(setHours(startDate, 9), 0);
+    // Use provided startTime or default to current time
+    let currentTime = startTime ? new Date(startTime) : new Date();
+
+    // If no startTime provided, round up to next 15-minute interval for cleaner scheduling
+    if (!startTime) {
+      const minutes = currentTime.getMinutes();
+      const roundedMinutes = Math.ceil(minutes / 15) * 15;
+      currentTime = setMinutes(currentTime, roundedMinutes % 60);
+      if (roundedMinutes >= 60) {
+        currentTime = setHours(currentTime, currentTime.getHours() + 1);
+      }
+    }
+
     const blocks: TimeBlock[] = [];
 
     // Sort tasks by priority
@@ -225,9 +237,9 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
 
   const renderWelcome = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.emoji}>🌅</Text>
+      <Text style={styles.emoji}>🎯</Text>
       <Text style={[styles.title, { color: colors.text, ...typography.largeTitle }]}>
-        Good Morning!
+        Plan Your Day
       </Text>
       <Text
         style={[
@@ -235,7 +247,7 @@ export const DailyFocusModal: React.FC<DailyFocusModalProps> = ({
           { color: colors.secondaryText, ...typography.body },
         ]}
       >
-        Let's create a realistic plan for your day. I'll help you schedule tasks based on priority and time estimates.
+        Let's create a realistic plan starting from now. I'll help you schedule tasks based on priority and time estimates.
       </Text>
 
       <View style={styles.benefitsContainer}>
