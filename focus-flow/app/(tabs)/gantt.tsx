@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
@@ -16,7 +16,6 @@ import {
   min,
   max,
 } from '../../src/utils/dateUtils';
-import Svg, { Line, Rect, Text as SvgText } from 'react-native-svg';
 
 const DAY_WIDTH = 40;
 const ROW_HEIGHT = 60;
@@ -139,19 +138,14 @@ export default function GanttScreen() {
     return (
       <View
         style={[styles.leftColumnOverlay, { width: LEFT_COLUMN_WIDTH, backgroundColor: colors.background }]}
-        pointerEvents="box-none" // Allow scroll events to pass through
       >
         {/* Header spacer */}
-        <View
-          style={[styles.leftColumnHeader, { height: HEADER_HEIGHT, borderBottomColor: colors.separator }]}
-          pointerEvents="auto"
-        />
+        <View style={[styles.leftColumnHeader, { height: HEADER_HEIGHT, borderBottomColor: colors.separator }]} />
 
         {/* Task name cells */}
         {tasksWithDates.map((task, index) => (
           <View
             key={task.id}
-            pointerEvents="auto"
             style={[
               styles.taskNameCell,
               {
@@ -334,13 +328,11 @@ export default function GanttScreen() {
             horizontal
             showsHorizontalScrollIndicator={true}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
           >
             <ScrollView
               showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}
               nestedScrollEnabled={true}
-              style={styles.verticalScroll}
             >
               {renderTimelineContent()}
             </ScrollView>
@@ -367,12 +359,6 @@ const styles = StyleSheet.create({
   ganttContainer: {
     flex: 1,
     position: 'relative',
-  },
-  horizontalScrollContent: {
-    flexGrow: 1,
-  },
-  verticalScroll: {
-    flex: 1,
   },
   leftColumnOverlay: {
     position: 'absolute',
