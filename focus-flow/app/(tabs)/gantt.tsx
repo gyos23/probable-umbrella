@@ -327,10 +327,13 @@ export default function GanttScreen() {
             horizontal
             showsHorizontalScrollIndicator={true}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScrollContent}
           >
             <ScrollView
               showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              style={styles.verticalScroll}
             >
               {renderTimelineContent()}
             </ScrollView>
@@ -357,6 +360,12 @@ const styles = StyleSheet.create({
   ganttContainer: {
     flex: 1,
     position: 'relative',
+  },
+  horizontalScrollContent: {
+    flexGrow: 1,
+  },
+  verticalScroll: {
+    flex: 1,
   },
   leftColumnOverlay: {
     position: 'absolute',
