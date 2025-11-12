@@ -132,11 +132,60 @@ export default function GanttScreen() {
     );
   };
 
-  const renderTimelineHeader = () => {
+  // Render the fixed left column overlay with task names
+  const renderLeftColumnOverlay = () => {
+    const HEADER_HEIGHT = 60; // Height of the timeline header
+
     return (
-      <View style={styles.timelineHeader}>
-        <View style={[styles.leftColumn, { width: LEFT_COLUMN_WIDTH }]} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={[styles.leftColumnOverlay, { width: LEFT_COLUMN_WIDTH, backgroundColor: colors.background }]}>
+        {/* Header spacer */}
+        <View style={[styles.leftColumnHeader, { height: HEADER_HEIGHT, borderBottomColor: colors.separator }]} />
+
+        {/* Task name cells */}
+        {tasksWithDates.map((task, index) => (
+          <View
+            key={task.id}
+            style={[
+              styles.taskNameCell,
+              {
+                height: ROW_HEIGHT,
+                backgroundColor: index % 2 === 0 ? colors.background : colors.secondaryBackground,
+                borderRightColor: colors.separator,
+                borderBottomColor: colors.separator,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.taskName, { color: colors.text, ...typography.subheadline }]}
+              numberOfLines={2}
+            >
+              {task.title}
+            </Text>
+            {task.progress > 0 && (
+              <Text style={[styles.progressText, { color: colors.secondaryText, ...typography.caption1 }]}>
+                {task.progress}%
+              </Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  // Render the timeline content (header + task rows) in a single scrollable area
+  const renderTimelineContent = () => {
+    const HEADER_HEIGHT = 60;
+    const totalHeight = HEADER_HEIGHT + (tasksWithDates.length * ROW_HEIGHT);
+    const totalWidth = LEFT_COLUMN_WIDTH + (days.length * DAY_WIDTH);
+
+    return (
+      <View style={[styles.timelineContent, { height: totalHeight, width: totalWidth }]}>
+        {/* Timeline Header */}
+        <View style={[styles.timelineHeader, { height: HEADER_HEIGHT, borderBottomColor: colors.separator }]}>
+          {/* Spacer for left column */}
+          <View style={{ width: LEFT_COLUMN_WIDTH }} />
+
+          {/* Days row */}
           <View style={styles.daysRow}>
             {days.map((day, index) => (
               <View
@@ -149,6 +198,7 @@ export default function GanttScreen() {
                       format(day, 'EEE') === 'Sat' || format(day, 'EEE') === 'Sun'
                         ? colors.secondaryBackground
                         : colors.background,
+                    borderRightColor: colors.separator,
                   },
                 ]}
               >
@@ -161,104 +211,99 @@ export default function GanttScreen() {
               </View>
             ))}
           </View>
-        </ScrollView>
-      </View>
-    );
-  };
-
-  const renderTaskRow = (task: Task, index: number) => {
-    const position = getTaskPosition(task);
-    const taskColor = getTaskColor(task);
-
-    return (
-      <View
-        key={task.id}
-        style={[
-          styles.taskRow,
-          { height: ROW_HEIGHT, backgroundColor: index % 2 === 0 ? colors.background : colors.secondaryBackground },
-        ]}
-      >
-        <View
-          style={[
-            styles.taskNameCell,
-            { width: LEFT_COLUMN_WIDTH, borderRightColor: colors.separator },
-          ]}
-        >
-          <Text
-            style={[styles.taskName, { color: colors.text, ...typography.subheadline }]}
-            numberOfLines={2}
-          >
-            {task.title}
-          </Text>
-          {task.progress > 0 && (
-            <Text style={[styles.progressText, { color: colors.secondaryText, ...typography.caption1 }]}>
-              {task.progress}%
-            </Text>
-          )}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={[styles.timelineArea, { width: days.length * DAY_WIDTH }]}>
-            {position && (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => handleTaskBarPress(task)}
-                onLongPress={() => handleTaskBarLongPress(task)}
-                onMouseEnter={() => Platform.OS === 'web' && setHoveredTaskId(task.id)}
-                onMouseLeave={() => Platform.OS === 'web' && setHoveredTaskId(null)}
-                style={[
-                  styles.taskBar,
-                  {
-                    left: position.x,
-                    width: position.width,
-                    backgroundColor: taskColor,
-                    opacity: task.status === 'completed' ? 0.5 : hoveredTaskId === task.id ? 1 : 0.9,
-                    transform: hoveredTaskId === task.id ? [{ scale: 1.05 }] : [{ scale: 1 }],
-                    cursor: Platform.OS === 'web' ? 'pointer' : undefined,
-                  } as any,
-                ]}
-              >
-                {task.progress > 0 && task.progress < 100 && (
+        {/* Task Rows */}
+        {tasksWithDates.map((task, index) => {
+          const position = getTaskPosition(task);
+          const taskColor = getTaskColor(task);
+          const rowTop = HEADER_HEIGHT + (index * ROW_HEIGHT);
+
+          return (
+            <View
+              key={task.id}
+              style={[
+                styles.taskRow,
+                {
+                  position: 'absolute',
+                  top: rowTop,
+                  left: 0,
+                  right: 0,
+                  height: ROW_HEIGHT,
+                  backgroundColor: index % 2 === 0 ? colors.background : colors.secondaryBackground,
+                  borderBottomColor: colors.separator,
+                },
+              ]}
+            >
+              {/* Spacer for left column */}
+              <View style={{ width: LEFT_COLUMN_WIDTH }} />
+
+              {/* Timeline area with grid and task bar */}
+              <View style={[styles.timelineArea, { width: days.length * DAY_WIDTH }]}>
+                {/* Grid cells */}
+                {days.map((day, dayIndex) => (
                   <View
+                    key={dayIndex}
                     style={[
-                      styles.progressFill,
+                      styles.gridCell,
                       {
-                        width: `${task.progress}%`,
-                        backgroundColor: taskColor,
+                        left: dayIndex * DAY_WIDTH,
+                        width: DAY_WIDTH,
+                        borderRightColor: colors.separator,
                       },
                     ]}
                   />
-                )}
-                <Text
-                  style={[styles.taskBarText, { color: '#FFFFFF', ...typography.caption1 }]}
-                  numberOfLines={1}
-                >
-                  {task.title}
-                </Text>
-                {hoveredTaskId === task.id && Platform.OS === 'web' && (
-                  <View style={styles.resizeHandles}>
-                    <View style={[styles.resizeHandle, styles.leftHandle, { backgroundColor: '#FFFFFF' }]} />
-                    <View style={[styles.resizeHandle, styles.rightHandle, { backgroundColor: '#FFFFFF' }]} />
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
+                ))}
 
-            {days.map((day, dayIndex) => (
-              <View
-                key={dayIndex}
-                style={[
-                  styles.gridCell,
-                  {
-                    left: dayIndex * DAY_WIDTH,
-                    width: DAY_WIDTH,
-                    borderRightColor: colors.separator,
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        </ScrollView>
+                {/* Task bar */}
+                {position && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => handleTaskBarPress(task)}
+                    onLongPress={() => handleTaskBarLongPress(task)}
+                    onMouseEnter={() => Platform.OS === 'web' && setHoveredTaskId(task.id)}
+                    onMouseLeave={() => Platform.OS === 'web' && setHoveredTaskId(null)}
+                    style={[
+                      styles.taskBar,
+                      {
+                        left: position.x,
+                        width: position.width,
+                        backgroundColor: taskColor,
+                        opacity: task.status === 'completed' ? 0.5 : hoveredTaskId === task.id ? 1 : 0.9,
+                        transform: hoveredTaskId === task.id ? [{ scale: 1.05 }] : [{ scale: 1 }],
+                        cursor: Platform.OS === 'web' ? 'pointer' : undefined,
+                      } as any,
+                    ]}
+                  >
+                    {task.progress > 0 && task.progress < 100 && (
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${task.progress}%`,
+                            backgroundColor: taskColor,
+                          },
+                        ]}
+                      />
+                    )}
+                    <Text
+                      style={[styles.taskBarText, { color: '#FFFFFF', ...typography.caption1 }]}
+                      numberOfLines={1}
+                    >
+                      {task.title}
+                    </Text>
+                    {hoveredTaskId === task.id && Platform.OS === 'web' && (
+                      <View style={styles.resizeHandles}>
+                        <View style={[styles.resizeHandle, styles.leftHandle, { backgroundColor: '#FFFFFF' }]} />
+                        <View style={[styles.resizeHandle, styles.rightHandle, { backgroundColor: '#FFFFFF' }]} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        })}
       </View>
     );
   };
@@ -273,10 +318,24 @@ export default function GanttScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView>
-          {renderTimelineHeader()}
-          {tasksWithDates.map((task, index) => renderTaskRow(task, index))}
-        </ScrollView>
+        <View style={styles.ganttContainer}>
+          {/* Fixed left column overlay with task names */}
+          {renderLeftColumnOverlay()}
+
+          {/* Single unified ScrollView for the entire timeline */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={true}
+            showsVerticalScrollIndicator={false}
+          >
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              showsHorizontalScrollIndicator={false}
+            >
+              {renderTimelineContent()}
+            </ScrollView>
+          </ScrollView>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -295,16 +354,32 @@ const styles = StyleSheet.create({
   emptyStateText: {
     textAlign: 'center',
   },
+  ganttContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  leftColumnOverlay: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  leftColumnHeader: {
+    borderBottomWidth: 2,
+    borderRightWidth: 1,
+  },
+  timelineContent: {
+    position: 'relative',
+  },
   timelineHeader: {
     flexDirection: 'row',
     borderBottomWidth: 2,
-    borderBottomColor: '#E5E5E5',
-  },
-  leftColumn: {
-    borderRightWidth: 1,
-    borderRightColor: '#E5E5E5',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
   },
   daysRow: {
     flexDirection: 'row',
@@ -314,7 +389,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     borderRightWidth: 1,
-    borderRightColor: '#F0F0F0',
   },
   dayText: {
     marginBottom: 2,
@@ -323,7 +397,6 @@ const styles = StyleSheet.create({
   taskRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   taskNameCell: {
     padding: 12,
@@ -358,7 +431,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     overflow: 'visible',
-    transition: 'all 0.2s ease',
   },
   progressFill: {
     position: 'absolute',
