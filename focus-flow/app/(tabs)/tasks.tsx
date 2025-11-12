@@ -21,6 +21,7 @@ import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
 import { EmptyState } from '../../src/components/EmptyState';
 import { CelebrationConfetti } from '../../src/components/CelebrationConfetti';
+import { DailyFocusModal } from '../../src/components/DailyFocusModal';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, TaskStatus, TaskPriority } from '../../src/types';
 
@@ -47,6 +48,7 @@ export default function TasksScreen() {
   const [showOnlyFlagged, setShowOnlyFlagged] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showDailyFocusModal, setShowDailyFocusModal] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
     notes: '',
@@ -214,6 +216,25 @@ export default function TasksScreen() {
           >
             <Text style={[styles.sortButtonText, { color: showOnlyFlagged ? '#FFFFFF' : colors.text, ...typography.subheadline }]}>
               {showOnlyFlagged ? '⭐ All' : '⭐ Flagged'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor: colors.green,
+                borderColor: colors.separator,
+                marginLeft: 8,
+              }
+            ]}
+            onPress={() => {
+              haptics.medium();
+              setShowDailyFocusModal(true);
+            }}
+          >
+            <Text style={[styles.sortButtonText, { color: '#FFFFFF', ...typography.subheadline }]}>
+              🎯 Plan Day
             </Text>
           </TouchableOpacity>
 
@@ -494,6 +515,11 @@ export default function TasksScreen() {
       <CelebrationConfetti
         trigger={showCelebration}
         onAnimationEnd={() => setShowCelebration(false)}
+      />
+
+      <DailyFocusModal
+        visible={showDailyFocusModal}
+        onClose={() => setShowDailyFocusModal(false)}
       />
     </SafeAreaView>
   );
