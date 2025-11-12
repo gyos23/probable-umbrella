@@ -22,6 +22,7 @@ import { Button } from '../../src/components/Button';
 import { EmptyState } from '../../src/components/EmptyState';
 import { CelebrationConfetti } from '../../src/components/CelebrationConfetti';
 import { DailyFocusModal } from '../../src/components/DailyFocusModal';
+import { TimeBoxCalendar } from '../../src/components/TimeBoxCalendar';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, TaskStatus, TaskPriority } from '../../src/types';
 
@@ -37,6 +38,7 @@ export default function TasksScreen() {
   const loadData = useTaskStore((state) => state.loadData);
   const projects = useTaskStore((state) => state.projects);
   const focusAreas = useTaskStore((state) => state.focusAreas);
+  const dailyPlan = useTaskStore((state) => state.dailyPlan);
   const viewDensity = useSettingsStore((state) => state.viewDensity);
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -49,12 +51,20 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showDailyFocusModal, setShowDailyFocusModal] = useState(false);
+  const [showDayView, setShowDayView] = useState(true);
   const [newTask, setNewTask] = useState({
     title: '',
     notes: '',
     status: 'todo' as TaskStatus,
     priority: 'medium' as TaskPriority,
   });
+
+  // Check if daily plan is for today
+  const hasTodaysPlan = useMemo(() => {
+    if (!dailyPlan) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return dailyPlan.date === today;
+  }, [dailyPlan]);
 
   // Check if all tasks are completed for celebration
   const allTasksCompleted = useMemo(() => {
@@ -300,6 +310,41 @@ export default function TasksScreen() {
       <FlatList
         data={filteredTasks}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          hasTodaysPlan && dailyPlan ? (
+            <View style={styles.dayViewContainer}>
+              <View style={styles.dayViewHeader}>
+                <Text style={[styles.dayViewTitle, { color: colors.text, ...typography.title2 }]}>
+                  Today's Schedule
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.light();
+                    setShowDayView(!showDayView);
+                  }}
+                  style={styles.collapseButton}
+                >
+                  <Text style={[styles.collapseIcon, { color: colors.secondaryText }]}>
+                    {showDayView ? '▼' : '▶'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {showDayView && (
+                <View style={styles.calendarWrapper}>
+                  <TimeBoxCalendar
+                    timeBlocks={dailyPlan.timeBlocks}
+                    tasks={tasks.filter(t => dailyPlan.taskIds.includes(t.id))}
+                    breakDuration={dailyPlan.breakDuration}
+                  />
+                </View>
+              )}
+              <View style={styles.divider} />
+              <Text style={[styles.allTasksLabel, { color: colors.secondaryText, ...typography.headline }]}>
+                All Tasks
+              </Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => (
           <TaskRow
             task={item}
@@ -693,5 +738,38 @@ const styles = StyleSheet.create({
   },
   optionChipText: {
     fontWeight: '500',
+  },
+  dayViewContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  dayViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  dayViewTitle: {
+    fontWeight: '700',
+  },
+  collapseButton: {
+    padding: 8,
+  },
+  collapseIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  calendarWrapper: {
+    height: 400,
+    marginBottom: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginVertical: 12,
+  },
+  allTasksLabel: {
+    fontWeight: '700',
+    marginBottom: 8,
   },
 });
