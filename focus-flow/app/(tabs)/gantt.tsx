@@ -137,14 +137,21 @@ export default function GanttScreen() {
     const HEADER_HEIGHT = 60; // Height of the timeline header
 
     return (
-      <View style={[styles.leftColumnOverlay, { width: LEFT_COLUMN_WIDTH, backgroundColor: colors.background }]}>
+      <View
+        style={[styles.leftColumnOverlay, { width: LEFT_COLUMN_WIDTH, backgroundColor: colors.background }]}
+        pointerEvents="box-none" // Allow scroll events to pass through
+      >
         {/* Header spacer */}
-        <View style={[styles.leftColumnHeader, { height: HEADER_HEIGHT, borderBottomColor: colors.separator }]} />
+        <View
+          style={[styles.leftColumnHeader, { height: HEADER_HEIGHT, borderBottomColor: colors.separator }]}
+          pointerEvents="auto"
+        />
 
         {/* Task name cells */}
         {tasksWithDates.map((task, index) => (
           <View
             key={task.id}
+            pointerEvents="auto"
             style={[
               styles.taskNameCell,
               {
@@ -228,7 +235,7 @@ export default function GanttScreen() {
                   position: 'absolute',
                   top: rowTop,
                   left: 0,
-                  right: 0,
+                  width: totalWidth,
                   height: ROW_HEIGHT,
                   backgroundColor: index % 2 === 0 ? colors.background : colors.secondaryBackground,
                   borderBottomColor: colors.separator,
