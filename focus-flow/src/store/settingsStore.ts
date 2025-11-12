@@ -9,6 +9,7 @@ interface SettingsState {
   viewDensity: ViewDensity;
   theme: Theme;
   showCompletedTasks: boolean;
+  groupTasksByProject: boolean;
 
   // List view preferences
   listViewShowAllTasks: boolean; // Show tasks without dates in gantt
@@ -17,6 +18,7 @@ interface SettingsState {
   setViewDensity: (density: ViewDensity) => void;
   setTheme: (theme: Theme) => void;
   setShowCompletedTasks: (show: boolean) => void;
+  setGroupTasksByProject: (group: boolean) => void;
   setListViewShowAllTasks: (show: boolean) => void;
 
   // Persistence
@@ -31,6 +33,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   viewDensity: 'comfortable',
   theme: 'auto',
   showCompletedTasks: true,
+  groupTasksByProject: false,
   listViewShowAllTasks: true,
 
   setViewDensity: (density) => {
@@ -48,6 +51,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().saveSettings();
   },
 
+  setGroupTasksByProject: (group) => {
+    set({ groupTasksByProject: group });
+    get().saveSettings();
+  },
+
   setListViewShowAllTasks: (show) => {
     set({ listViewShowAllTasks: show });
     get().saveSettings();
@@ -62,6 +70,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           viewDensity: parsed.viewDensity || 'comfortable',
           theme: parsed.theme || 'auto',
           showCompletedTasks: parsed.showCompletedTasks ?? true,
+          groupTasksByProject: parsed.groupTasksByProject ?? false,
           listViewShowAllTasks: parsed.listViewShowAllTasks ?? true,
         });
       }
@@ -77,6 +86,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         viewDensity: state.viewDensity,
         theme: state.theme,
         showCompletedTasks: state.showCompletedTasks,
+        groupTasksByProject: state.groupTasksByProject,
         listViewShowAllTasks: state.listViewShowAllTasks,
       });
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, data);

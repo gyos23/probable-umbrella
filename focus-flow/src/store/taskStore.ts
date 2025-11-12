@@ -7,6 +7,7 @@ interface TaskStore {
   tasks: Task[];
   projects: Project[];
   focusAreas: FocusArea[];
+  archivedTasks: Task[];
 
   // Daily focus
   dailyGoal: number;
@@ -22,6 +23,8 @@ interface TaskStore {
   toggleTaskFlag: (id: string) => void;
   bulkAddTasks: (tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'dependsOn' | 'blockedBy' | 'tags'>[]) => void;
   generateNextRecurringInstance: (taskId: string) => void;
+  archiveCompletedTasks: () => number;
+  unarchiveTask: (id: string) => void;
 
   // Project actions
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'order' | 'status'>) => void;
@@ -45,6 +48,9 @@ interface TaskStore {
   shouldShowDailyPrompt: () => boolean;
   markPromptShown: () => void;
 
+  // Data management
+  wipeAllData: () => void;
+
   // Persistence
   loadData: () => Promise<void>;
   saveData: () => Promise<void>;
@@ -59,6 +65,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   projects: [],
   focusAreas: [],
+  archivedTasks: [],
   dailyGoal: 0,
   focusedTaskIds: [],
   lastPromptDate: null,
@@ -403,6 +410,45 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     get().saveData();
   },
 
+  archiveCompletedTasks: () => {
+    const completedTasks = get().tasks.filter((task) => task.status === 'completed');
+    const remainingTasks = get().tasks.filter((task) => task.status !== 'completed');
+
+    set((state) => ({
+      archivedTasks: [...state.archivedTasks, ...completedTasks],
+      tasks: remainingTasks,
+    }));
+
+    get().saveData();
+    return completedTasks.length;
+  },
+
+  unarchiveTask: (id) => {
+    const taskToUnarchive = get().archivedTasks.find((task) => task.id === id);
+
+    if (taskToUnarchive) {
+      set((state) => ({
+        archivedTasks: state.archivedTasks.filter((task) => task.id !== id),
+        tasks: [...state.tasks, taskToUnarchive],
+      }));
+      get().saveData();
+    }
+  },
+
+  wipeAllData: () => {
+    set({
+      tasks: [],
+      projects: [],
+      focusAreas: [],
+      archivedTasks: [],
+      dailyGoal: 0,
+      focusedTaskIds: [],
+      lastPromptDate: null,
+      dailyPlan: null,
+    });
+    get().saveData();
+  },
+
   loadData: async () => {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
@@ -410,6 +456,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const parsed = JSON.parse(data);
         // Convert date strings back to Date objects
         const tasks = parsed.tasks?.map((task: any) => ({
+          ...task,
+          dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+          plannedDate: task.plannedDate ? new Date(task.plannedDate) : undefined,
+          startDate: task.startDate ? new Date(task.startDate) : undefined,
+          completedDate: task.completedDate ? new Date(task.completedDate) : undefined,
+          createdAt: new Date(task.createdAt),
+          updatedAt: new Date(task.updatedAt),
+        })) || [];
+
+        const archivedTasks = parsed.archivedTasks?.map((task: any) => ({
           ...task,
           dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
           plannedDate: task.plannedDate ? new Date(task.plannedDate) : undefined,
@@ -448,7 +504,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           createdAt: new Date(parsed.dailyPlan.createdAt),
         } : null;
 
-        set({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan });
+        set({ tasks, projects, focusAreas, archivedTasks, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan });
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -457,10 +513,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   saveData: async () => {
     try {
-      const { tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan } = get();
+      const { tasks, projects, focusAreas, archivedTasks, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan } = get();
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ tasks, projects, focusAreas, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan })
+        JSON.stringify({ tasks, projects, focusAreas, archivedTasks, dailyGoal, focusedTaskIds, lastPromptDate, dailyPlan })
       );
     } catch (error) {
       console.error('Error saving data:', error);

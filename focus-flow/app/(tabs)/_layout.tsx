@@ -69,6 +69,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <TabBarIcon name="settings" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="gantt"
         options={{
           href: null, // Hide from tabs, accessible via list view
@@ -87,6 +94,7 @@ function TabBarIcon({ name, color }: { name: string; color: string }) {
     calendar: '📅',
     views: '📊',
     chart: '📊',
+    settings: '⚙️',
   };
 
   return (
