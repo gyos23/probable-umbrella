@@ -21,6 +21,8 @@ import { TaskRow } from '../../src/components/TaskRow';
 import { Button } from '../../src/components/Button';
 import { EmptyState } from '../../src/components/EmptyState';
 import { CelebrationConfetti } from '../../src/components/CelebrationConfetti';
+import { DailyFocusModal } from '../../src/components/DailyFocusModal';
+import { TimeBoxCalendar } from '../../src/components/TimeBoxCalendar';
 import { useTheme } from '../../src/theme/useTheme';
 import { Task, TaskStatus, TaskPriority } from '../../src/types';
 
@@ -36,7 +38,9 @@ export default function TasksScreen() {
   const loadData = useTaskStore((state) => state.loadData);
   const projects = useTaskStore((state) => state.projects);
   const focusAreas = useTaskStore((state) => state.focusAreas);
+  const dailyPlan = useTaskStore((state) => state.dailyPlan);
   const viewDensity = useSettingsStore((state) => state.viewDensity);
+  const groupTasksByProject = useSettingsStore((state) => state.groupTasksByProject);
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all');
@@ -47,12 +51,21 @@ export default function TasksScreen() {
   const [showOnlyFlagged, setShowOnlyFlagged] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showDailyFocusModal, setShowDailyFocusModal] = useState(false);
+  const [showDayView, setShowDayView] = useState(true);
   const [newTask, setNewTask] = useState({
     title: '',
     notes: '',
     status: 'todo' as TaskStatus,
     priority: 'medium' as TaskPriority,
   });
+
+  // Check if daily plan is for today
+  const hasTodaysPlan = useMemo(() => {
+    if (!dailyPlan) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return dailyPlan.date === today;
+  }, [dailyPlan]);
 
   // Check if all tasks are completed for celebration
   const allTasksCompleted = useMemo(() => {
@@ -112,6 +125,36 @@ export default function TasksScreen() {
         return new Date(aDate).getTime() - new Date(bDate).getTime();
       }
     });
+
+  const groupedTasks = useMemo(() => {
+    if (!groupTasksByProject) return null;
+
+    const grouped = projects.map((project) => ({
+      project,
+      tasks: filteredTasks.filter((t) => t.projectId === project.id),
+    }));
+
+    // Add unassigned tasks
+    const unassignedTasks = filteredTasks.filter((t) => !t.projectId);
+    if (unassignedTasks.length > 0) {
+      grouped.push({
+        project: {
+          id: 'unassigned',
+          name: 'Inbox',
+          description: 'Tasks without a project',
+          color: colors.secondaryText,
+          status: 'todo' as const,
+          progress: 0,
+          order: 999,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        tasks: unassignedTasks,
+      });
+    }
+
+    return grouped.filter(g => g.tasks.length > 0);
+  }, [groupTasksByProject, filteredTasks, projects, colors]);
 
   const handleAddTask = () => {
     if (newTask.title.trim()) {
@@ -217,6 +260,25 @@ export default function TasksScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor: colors.green,
+                borderColor: colors.separator,
+                marginLeft: 8,
+              }
+            ]}
+            onPress={() => {
+              haptics.medium();
+              setShowDailyFocusModal(true);
+            }}
+          >
+            <Text style={[styles.sortButtonText, { color: '#FFFFFF', ...typography.subheadline }]}>
+              🎯 Plan Day
+            </Text>
+          </TouchableOpacity>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -276,65 +338,210 @@ export default function TasksScreen() {
         )}
       </View>
 
-      <FlatList
-        data={filteredTasks}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TaskRow
-            task={item}
-            onPress={() => router.push(`/task/${item.id}`)}
-            onToggleComplete={() => toggleTaskComplete(item.id)}
-            onToggleFlag={() => toggleTaskFlag(item.id)}
-            onDelete={() => deleteTask(item.id)}
-            onChangeStatus={(status) => updateTask(item.id, { status })}
-            onChangePriority={(priority) => updateTask(item.id, { priority })}
-            density={viewDensity}
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        ListEmptyComponent={
-          searchQuery ? (
-            <EmptyState
-              emoji="🔍"
-              title="No Results"
-              message={`No tasks found matching "${searchQuery}"`}
-              actionLabel="Clear Search"
-              onAction={() => setSearchQuery('')}
+      {groupTasksByProject && groupedTasks ? (
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
-          ) : filterStatus === 'all' ? (
-            <EmptyState
-              emoji="✨"
-              title="Ready to Start?"
-              message="No tasks yet. Create your first task to get organized and boost your productivity!"
-              actionLabel="Create Task"
-              onAction={() => setIsAddModalVisible(true)}
-            />
+          }
+        >
+          {hasTodaysPlan && dailyPlan && (
+            <View style={styles.dayViewContainer}>
+              <View style={styles.dayViewHeader}>
+                <Text style={[styles.dayViewTitle, { color: colors.text, ...typography.title2 }]}>
+                  Today's Schedule
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.light();
+                    setShowDayView(!showDayView);
+                  }}
+                  style={styles.collapseButton}
+                >
+                  <Text style={[styles.collapseIcon, { color: colors.secondaryText }]}>
+                    {showDayView ? '▼' : '▶'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {showDayView && (
+                <View style={styles.calendarWrapper}>
+                  <TimeBoxCalendar
+                    timeBlocks={dailyPlan.timeBlocks}
+                    tasks={tasks.filter(t => dailyPlan.taskIds.includes(t.id))}
+                    breakDuration={dailyPlan.breakDuration}
+                  />
+                </View>
+              )}
+              <View style={styles.divider} />
+              <Text style={[styles.allTasksLabel, { color: colors.secondaryText, ...typography.headline }]}>
+                All Tasks
+              </Text>
+            </View>
+          )}
+
+          {groupedTasks.length === 0 ? (
+            searchQuery ? (
+              <EmptyState
+                emoji="🔍"
+                title="No Results"
+                message={`No tasks found matching "${searchQuery}"`}
+                actionLabel="Clear Search"
+                onAction={() => setSearchQuery('')}
+              />
+            ) : filterStatus === 'all' ? (
+              <EmptyState
+                emoji="✨"
+                title="Ready to Start?"
+                message="No tasks yet. Create your first task to get organized and boost your productivity!"
+                actionLabel="Create Task"
+                onAction={() => setIsAddModalVisible(true)}
+              />
+            ) : (
+              <EmptyState
+                emoji={
+                  filterStatus === 'completed' ? '🎉' :
+                  filterStatus === 'in-progress' ? '⚡' : '📝'
+                }
+                title={`No ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Tasks`}
+                message={
+                  filterStatus === 'completed'
+                    ? 'Complete some tasks to see them here!'
+                    : filterStatus === 'in-progress'
+                    ? 'Start working on a task to see it here!'
+                    : 'Create a task to get started!'
+                }
+              />
+            )
           ) : (
-            <EmptyState
-              emoji={
-                filterStatus === 'completed' ? '🎉' :
-                filterStatus === 'in-progress' ? '⚡' : '📝'
-              }
-              title={`No ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Tasks`}
-              message={
-                filterStatus === 'completed'
-                  ? 'Complete some tasks to see them here!'
-                  : filterStatus === 'in-progress'
-                  ? 'Start working on a task to see it here!'
-                  : 'Create a task to get started!'
-              }
+            groupedTasks.map((group) => (
+              <View key={group.project.id} style={styles.projectGroup}>
+                <View style={[styles.projectHeader, { backgroundColor: colors.secondaryBackground }]}>
+                  <View style={[styles.projectColorDot, { backgroundColor: group.project.color }]} />
+                  <Text style={[styles.projectName, { color: colors.text, ...typography.title3 }]}>
+                    {group.project.name}
+                  </Text>
+                  <Text style={[styles.taskCount, { color: colors.secondaryText, ...typography.caption1 }]}>
+                    ({group.tasks.length})
+                  </Text>
+                </View>
+                {group.tasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    onPress={() => router.push(`/task/${task.id}`)}
+                    onToggleComplete={() => toggleTaskComplete(task.id)}
+                    onToggleFlag={() => toggleTaskFlag(task.id)}
+                    onDelete={() => deleteTask(task.id)}
+                    onChangeStatus={(status) => updateTask(task.id, { status })}
+                    onChangePriority={(priority) => updateTask(task.id, { priority })}
+                    density={viewDensity}
+                  />
+                ))}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={filteredTasks}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={
+            hasTodaysPlan && dailyPlan ? (
+              <View style={styles.dayViewContainer}>
+                <View style={styles.dayViewHeader}>
+                  <Text style={[styles.dayViewTitle, { color: colors.text, ...typography.title2 }]}>
+                    Today's Schedule
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      haptics.light();
+                      setShowDayView(!showDayView);
+                    }}
+                    style={styles.collapseButton}
+                  >
+                    <Text style={[styles.collapseIcon, { color: colors.secondaryText }]}>
+                      {showDayView ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {showDayView && (
+                  <View style={styles.calendarWrapper}>
+                    <TimeBoxCalendar
+                      timeBlocks={dailyPlan.timeBlocks}
+                      tasks={tasks.filter(t => dailyPlan.taskIds.includes(t.id))}
+                      breakDuration={dailyPlan.breakDuration}
+                    />
+                  </View>
+                )}
+                <View style={styles.divider} />
+                <Text style={[styles.allTasksLabel, { color: colors.secondaryText, ...typography.headline }]}>
+                  All Tasks
+                </Text>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <TaskRow
+              task={item}
+              onPress={() => router.push(`/task/${item.id}`)}
+              onToggleComplete={() => toggleTaskComplete(item.id)}
+              onToggleFlag={() => toggleTaskFlag(item.id)}
+              onDelete={() => deleteTask(item.id)}
+              onChangeStatus={(status) => updateTask(item.id, { status })}
+              onChangePriority={(priority) => updateTask(item.id, { priority })}
+              density={viewDensity}
             />
-          )
-        }
-      />
+          )}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            searchQuery ? (
+              <EmptyState
+                emoji="🔍"
+                title="No Results"
+                message={`No tasks found matching "${searchQuery}"`}
+                actionLabel="Clear Search"
+                onAction={() => setSearchQuery('')}
+              />
+            ) : filterStatus === 'all' ? (
+              <EmptyState
+                emoji="✨"
+                title="Ready to Start?"
+                message="No tasks yet. Create your first task to get organized and boost your productivity!"
+                actionLabel="Create Task"
+                onAction={() => setIsAddModalVisible(true)}
+              />
+            ) : (
+              <EmptyState
+                emoji={
+                  filterStatus === 'completed' ? '🎉' :
+                  filterStatus === 'in-progress' ? '⚡' : '📝'
+                }
+                title={`No ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Tasks`}
+                message={
+                  filterStatus === 'completed'
+                    ? 'Complete some tasks to see them here!'
+                    : filterStatus === 'in-progress'
+                    ? 'Start working on a task to see it here!'
+                    : 'Create a task to get started!'
+                }
+              />
+            )
+          }
+        />
+      )}
 
       <View style={[styles.fab, { backgroundColor: colors.primary }]}>
         <TouchableOpacity
@@ -494,6 +701,11 @@ export default function TasksScreen() {
       <CelebrationConfetti
         trigger={showCelebration}
         onAnimationEnd={() => setShowCelebration(false)}
+      />
+
+      <DailyFocusModal
+        visible={showDailyFocusModal}
+        onClose={() => setShowDailyFocusModal(false)}
       />
     </SafeAreaView>
   );
@@ -667,5 +879,59 @@ const styles = StyleSheet.create({
   },
   optionChipText: {
     fontWeight: '500',
+  },
+  dayViewContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  dayViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  dayViewTitle: {
+    fontWeight: '700',
+  },
+  collapseButton: {
+    padding: 8,
+  },
+  collapseIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  calendarWrapper: {
+    height: 400,
+    marginBottom: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginVertical: 12,
+  },
+  allTasksLabel: {
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  projectGroup: {
+    marginBottom: 16,
+  },
+  projectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  projectColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  projectName: {
+    fontWeight: '600',
+  },
+  taskCount: {
+    marginLeft: 4,
   },
 });

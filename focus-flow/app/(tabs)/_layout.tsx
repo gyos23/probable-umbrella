@@ -68,6 +68,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="views" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <TabBarIcon name="settings" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
@@ -81,6 +88,7 @@ function TabBarIcon({ name, color }: { name: string; color: string }) {
     calendar: '📅',
     views: '📊',
     chart: '📊',
+    settings: '⚙️',
   };
 
   return (

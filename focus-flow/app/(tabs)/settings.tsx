@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useSettingsStore, ViewDensity } from '../src/store/settingsStore';
-import { useTheme } from '../src/theme/useTheme';
-import { haptics } from '../src/utils/haptics';
+import { useSettingsStore, ViewDensity } from '../../src/store/settingsStore';
+import { useTaskStore } from '../../src/store/taskStore';
+import { useTheme } from '../../src/theme/useTheme';
+import { haptics } from '../../src/utils/haptics';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -14,7 +15,15 @@ export default function SettingsScreen() {
     setViewDensity,
     showCompletedTasks,
     setShowCompletedTasks,
+    groupTasksByProject,
+    setGroupTasksByProject,
   } = useSettingsStore();
+  const {
+    archiveCompletedTasks,
+    wipeAllData,
+    tasks,
+    archivedTasks,
+  } = useTaskStore();
 
   const handleDensityChange = (density: ViewDensity) => {
     haptics.light();
@@ -26,23 +35,74 @@ export default function SettingsScreen() {
     setter(value);
   };
 
+  const handleArchiveCompleted = () => {
+    haptics.light();
+    const completedCount = tasks.filter((t) => t.status === 'completed').length;
+
+    if (completedCount === 0) {
+      if (Platform.OS === 'web') {
+        alert('No completed tasks to archive');
+      } else {
+        Alert.alert('Archive Completed', 'No completed tasks to archive');
+      }
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      if (confirm(`Archive ${completedCount} completed task${completedCount === 1 ? '' : 's'}?`)) {
+        const archived = archiveCompletedTasks();
+        alert(`${archived} task${archived === 1 ? '' : 's'} archived successfully`);
+      }
+    } else {
+      Alert.alert(
+        'Archive Completed Tasks',
+        `Archive ${completedCount} completed task${completedCount === 1 ? '' : 's'}? They will be moved to the archive for review.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Archive',
+            onPress: () => {
+              const archived = archiveCompletedTasks();
+              Alert.alert('Success', `${archived} task${archived === 1 ? '' : 's'} archived successfully`);
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleWipeData = () => {
+    haptics.light();
+
+    if (Platform.OS === 'web') {
+      if (confirm('Are you sure you want to wipe all data? This cannot be undone!')) {
+        wipeAllData();
+        alert('All data has been wiped');
+      }
+    } else {
+      Alert.alert(
+        'Wipe All Data',
+        'Are you sure you want to delete everything? This action cannot be undone!',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Wipe Everything',
+            style: 'destructive',
+            onPress: () => {
+              wipeAllData();
+              Alert.alert('Success', 'All data has been wiped');
+            },
+          },
+        ]
+      );
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.separator }]}>
-        <TouchableOpacity
-          onPress={() => {
-            haptics.light();
-            router.back();
-          }}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Text style={[styles.backText, { color: colors.primary, ...typography.body }]}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text, ...typography.title1 }]}>Settings</Text>
-        <View style={styles.placeholder} />
+        <Text style={[styles.headerTitle, { color: colors.text, ...typography.largeTitle }]}>Settings</Text>
       </View>
 
       <ScrollView style={styles.content}>
@@ -125,6 +185,67 @@ export default function SettingsScreen() {
               />
             </View>
 
+            <View style={styles.optionRow}>
+              <View style={styles.optionInfo}>
+                <Text style={[styles.optionTitle, { color: colors.text, ...typography.body }]}>
+                  Group Tasks by Project
+                </Text>
+                <Text style={[styles.optionDescription, { color: colors.secondaryText, ...typography.caption1 }]}>
+                  Organize tasks by their projects
+                </Text>
+              </View>
+              <Switch
+                value={groupTasksByProject}
+                onValueChange={(value) => handleToggle(value, setGroupTasksByProject)}
+                trackColor={{ false: colors.separator, true: colors.primary }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="Group tasks by project toggle"
+                accessibilityRole="switch"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Data Management Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text, ...typography.title3 }]}>
+            Data Management
+          </Text>
+
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.separator }]}>
+            <TouchableOpacity
+              style={[styles.optionRow, { borderBottomWidth: 0.5, borderBottomColor: colors.separator }]}
+              onPress={handleArchiveCompleted}
+              accessibilityRole="button"
+              accessibilityLabel="Archive completed tasks"
+            >
+              <View style={styles.optionInfo}>
+                <Text style={[styles.optionTitle, { color: colors.text, ...typography.body }]}>
+                  Archive Completed Tasks
+                </Text>
+                <Text style={[styles.optionDescription, { color: colors.secondaryText, ...typography.caption1 }]}>
+                  Move all completed tasks to archive ({tasks.filter((t) => t.status === 'completed').length} completed, {archivedTasks.length} archived)
+                </Text>
+              </View>
+              <Text style={[styles.actionIcon, { color: colors.primary }]}>→</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionRow}
+              onPress={handleWipeData}
+              accessibilityRole="button"
+              accessibilityLabel="Wipe all data"
+            >
+              <View style={styles.optionInfo}>
+                <Text style={[styles.optionTitle, { color: colors.red, ...typography.body }]}>
+                  Wipe All Data
+                </Text>
+                <Text style={[styles.optionDescription, { color: colors.secondaryText, ...typography.caption1 }]}>
+                  Delete all tasks, projects, and settings
+                </Text>
+              </View>
+              <Text style={[styles.actionIcon, { color: colors.red }]}>⚠</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -174,26 +295,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 0.5,
   },
-  backButton: {
-    paddingVertical: 4,
-    paddingRight: 8,
-  },
-  backText: {
-    fontSize: 17,
-  },
   headerTitle: {
-    fontWeight: '600',
-    fontSize: 20,
-  },
-  placeholder: {
-    width: 60,
+    fontWeight: '700',
+    fontSize: 34,
   },
   content: {
     flex: 1,
@@ -251,5 +359,9 @@ const styles = StyleSheet.create({
   },
   aboutText: {
     lineHeight: 20,
+  },
+  actionIcon: {
+    fontSize: 20,
+    fontWeight: '600',
   },
 });

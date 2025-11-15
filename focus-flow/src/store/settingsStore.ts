@@ -9,11 +9,13 @@ interface SettingsState {
   viewDensity: ViewDensity;
   theme: Theme;
   showCompletedTasks: boolean;
+  groupTasksByProject: boolean;
 
   // Actions
   setViewDensity: (density: ViewDensity) => void;
   setTheme: (theme: Theme) => void;
   setShowCompletedTasks: (show: boolean) => void;
+  setGroupTasksByProject: (group: boolean) => void;
 
   // Persistence
   loadSettings: () => Promise<void>;
@@ -27,6 +29,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   viewDensity: 'comfortable',
   theme: 'auto',
   showCompletedTasks: true,
+  groupTasksByProject: false,
 
   setViewDensity: (density) => {
     set({ viewDensity: density });
@@ -43,6 +46,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().saveSettings();
   },
 
+  setGroupTasksByProject: (group) => {
+    set({ groupTasksByProject: group });
+    get().saveSettings();
+  },
+
   loadSettings: async () => {
     try {
       const data = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -52,6 +60,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           viewDensity: parsed.viewDensity || 'comfortable',
           theme: parsed.theme || 'auto',
           showCompletedTasks: parsed.showCompletedTasks ?? true,
+          groupTasksByProject: parsed.groupTasksByProject ?? false,
         });
       }
     } catch (error) {
@@ -66,6 +75,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         viewDensity: state.viewDensity,
         theme: state.theme,
         showCompletedTasks: state.showCompletedTasks,
+        groupTasksByProject: state.groupTasksByProject,
       });
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, data);
     } catch (error) {

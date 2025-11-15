@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { haptics } from '../utils/haptics';
 import { Task, TaskPriority, TaskStatus } from '../types';
@@ -31,6 +31,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
 }) => {
   const { colors, typography, spacing, borderRadius, shadow } = useTheme();
   const [showContextMenu, setShowContextMenu] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
 
   // Calculate spacing based on view density
   const getDensitySpacing = () => {
@@ -51,11 +52,12 @@ export const TaskRow: React.FC<TaskRowProps> = ({
           verticalPadding: 16,
           horizontalPadding: 14,
           checkboxSize: 22,
-          marginVertical: 14.5,
+          marginVertical: 30, // 60px total spacing between tasks
           titleFontSize: 16,
           metadataGap: 6,
           badgePaddingV: 3,
           badgePaddingH: 8,
+          minHeight: isPressed ? 125 : undefined, // 125px when highlighted
         };
       default: // comfortable
         return {
@@ -289,10 +291,13 @@ export const TaskRow: React.FC<TaskRowProps> = ({
             backgroundColor: colors.card,
             borderColor: colors.separator,
             marginVertical: densitySpacing.marginVertical,
+            minHeight: densitySpacing.minHeight,
             ...shadow.sm,
           },
         ]}
         onPress={handlePress}
+        onPressIn={() => setIsPressed(true)}
+        onPressOut={() => setIsPressed(false)}
         activeOpacity={0.7}
         accessible={true}
         accessibilityRole="button"
