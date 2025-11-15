@@ -34,6 +34,7 @@ export default function ListViewScreen() {
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useTaskStore((state) => state.projects);
   const updateTask = useTaskStore((state) => state.updateTask);
+  const addTask = useTaskStore((state) => state.addTask);
   const addDependency = useTaskStore((state) => state.addDependency);
   const removeDependency = useTaskStore((state) => state.removeDependency);
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
@@ -44,6 +45,9 @@ export default function ListViewScreen() {
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [showBulkPriorityModal, setShowBulkPriorityModal] = useState(false);
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
   const inputRef = useRef<TextInput>(null);
 
   const visibleColumns = useMemo(() => columns.filter((c) => c.visible && c.id !== 'title'), [columns]);
@@ -167,6 +171,30 @@ export default function ListViewScreen() {
       setSelectedTasks(new Set());
     } else {
       setSelectedTasks(new Set(tasks.map((t) => t.id)));
+    }
+  };
+
+  const toggleProjectCollapse = (projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddTask = () => {
+    if (newTaskTitle.trim()) {
+      addTask({
+        title: newTaskTitle.trim(),
+        status: 'todo',
+        priority: 'medium',
+      });
+      setNewTaskTitle('');
+      setShowAddTaskModal(false);
     }
   };
 
@@ -417,42 +445,65 @@ export default function ListViewScreen() {
     );
   };
 
-  const renderProjectGroup = (item: { project: Project; tasks: Task[] }, groupIndex: number) => (
-    <View key={item.project.id} style={styles.projectGroup}>
-      <View style={[styles.projectRow, { backgroundColor: colors.secondaryBackground, borderBottomColor: colors.separator }]}>
-        <View style={[styles.projectColumn, { width: 250, borderRightColor: colors.separator }]}>
-          <View style={styles.projectHeader}>
-            <View style={[styles.projectColorDot, { backgroundColor: item.project.color }]} />
-            <Text style={[styles.projectName, { color: colors.text, ...typography.title3 }]}>
-              {item.project.name}
-            </Text>
-            <Text style={[styles.taskCount, { color: colors.secondaryText, ...typography.caption1 }]}>
-              ({item.tasks.length})
-            </Text>
-          </View>
-        </View>
-        {visibleColumns.map((column) => (
-          <View
-            key={column.id}
-            style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
+  const renderProjectGroup = (item: { project: Project; tasks: Task[] }, groupIndex: number) => {
+    const isCollapsed = collapsedProjects.has(item.project.id);
+
+    return (
+      <View key={item.project.id} style={styles.projectGroup}>
+        <View style={[styles.projectRow, { backgroundColor: colors.secondaryBackground, borderBottomColor: colors.separator }]}>
+          {/* Checkbox column for alignment */}
+          <View style={[styles.checkboxColumn, { borderRightColor: colors.separator }]} />
+
+          {/* Project title column with collapse button */}
+          <TouchableOpacity
+            style={[styles.projectColumn, { width: 250, borderRightColor: colors.separator }]}
+            onPress={() => toggleProjectCollapse(item.project.id)}
           >
-            {column.id === 'progress' && (
-              <Text style={[styles.cellText, { color: colors.text, ...typography.caption1 }]}>
-                {item.project.progress}%
+            <View style={styles.projectHeader}>
+              <Text style={{ fontSize: 12, marginRight: 4 }}>
+                {isCollapsed ? '▶' : '▼'}
               </Text>
-            )}
-          </View>
-        ))}
+              <View style={[styles.projectColorDot, { backgroundColor: item.project.color }]} />
+              <Text style={[styles.projectName, { color: colors.text, ...typography.title3 }]}>
+                {item.project.name}
+              </Text>
+              <Text style={[styles.taskCount, { color: colors.secondaryText, ...typography.caption1 }]}>
+                ({item.tasks.length})
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Column values */}
+          {visibleColumns.map((column) => (
+            <View
+              key={column.id}
+              style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
+            >
+              {column.id === 'progress' && (
+                <Text style={[styles.cellText, { color: colors.text, ...typography.caption1 }]}>
+                  {item.project.progress}%
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* Render tasks only if not collapsed */}
+        {!isCollapsed && item.tasks.map((task, taskIndex) => renderTaskRow(task, taskIndex === item.tasks.length - 1))}
       </View>
-      {item.tasks.map((task, taskIndex) => renderTaskRow(task, taskIndex === item.tasks.length - 1))}
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       {/* Header with Column Config */}
       <View style={styles.toolbar}>
-        <View />
+        <TouchableOpacity
+          style={[styles.configButton, { backgroundColor: colors.primary }]}
+          onPress={() => setShowAddTaskModal(true)}
+        >
+          <Text style={{ fontSize: 16, color: '#FFFFFF' }}>+ Add Task</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.configButton, { backgroundColor: colors.secondaryBackground }]}
           onPress={() => setShowColumnConfig(!showColumnConfig)}
@@ -720,6 +771,53 @@ export default function ListViewScreen() {
           </TouchableOpacity>
         </Modal>
       )}
+
+      {/* Add Task Modal */}
+      {showAddTaskModal && (
+        <Modal
+          visible={showAddTaskModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddTaskModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowAddTaskModal(false)}
+          >
+            <View
+              style={[styles.addTaskModal, { backgroundColor: colors.card }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.pickerHeader}>
+                <Text style={[styles.pickerTitle, { color: colors.text, ...typography.headline }]}>
+                  Add New Task
+                </Text>
+                <TouchableOpacity onPress={() => setShowAddTaskModal(false)}>
+                  <Text style={[styles.doneButton, { color: colors.primary, ...typography.body }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={[styles.addTaskInput, { color: colors.text, backgroundColor: colors.secondaryBackground, borderColor: colors.separator, ...typography.body }]}
+                placeholder="Task title..."
+                placeholderTextColor={colors.tertiaryText}
+                value={newTaskTitle}
+                onChangeText={setNewTaskTitle}
+                onSubmitEditing={handleAddTask}
+                autoFocus
+              />
+
+              <TouchableOpacity
+                style={[styles.addTaskButton, { backgroundColor: colors.primary }]}
+                onPress={handleAddTask}
+              >
+                <Text style={[styles.addTaskButtonText, { ...typography.body }]}>Add Task</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -739,9 +837,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   configButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -937,6 +1035,33 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   bulkActionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  addTaskModal: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  addTaskInput: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  addTaskButton: {
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addTaskButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
   },
