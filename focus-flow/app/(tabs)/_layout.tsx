@@ -64,7 +64,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="list"
         options={{
-          title: 'Views',
+          title: 'Grid View',
           tabBarIcon: ({ color }) => <TabBarIcon name="views" color={color} />,
         }}
       />

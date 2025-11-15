@@ -403,6 +403,13 @@ export default function DashboardScreen() {
               <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Calendar</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.quickActionButton, { backgroundColor: colors.teal }]}
+              onPress={() => router.push('/weekly-review')}
+            >
+              <Text style={[styles.quickActionText, { ...typography.headline }]}>📊</Text>
+              <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Weekly Review</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.quickActionButton, { backgroundColor: colors.purple }]}
               onPress={() => router.push('/settings')}
             >
