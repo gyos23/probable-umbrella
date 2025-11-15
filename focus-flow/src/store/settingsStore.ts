@@ -10,14 +10,10 @@ interface SettingsState {
   theme: Theme;
   showCompletedTasks: boolean;
 
-  // List view preferences
-  listViewShowAllTasks: boolean; // Show tasks without dates in gantt
-
   // Actions
   setViewDensity: (density: ViewDensity) => void;
   setTheme: (theme: Theme) => void;
   setShowCompletedTasks: (show: boolean) => void;
-  setListViewShowAllTasks: (show: boolean) => void;
 
   // Persistence
   loadSettings: () => Promise<void>;
@@ -31,7 +27,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   viewDensity: 'comfortable',
   theme: 'auto',
   showCompletedTasks: true,
-  listViewShowAllTasks: true,
 
   setViewDensity: (density) => {
     set({ viewDensity: density });
@@ -48,11 +43,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().saveSettings();
   },
 
-  setListViewShowAllTasks: (show) => {
-    set({ listViewShowAllTasks: show });
-    get().saveSettings();
-  },
-
   loadSettings: async () => {
     try {
       const data = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -62,7 +52,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           viewDensity: parsed.viewDensity || 'comfortable',
           theme: parsed.theme || 'auto',
           showCompletedTasks: parsed.showCompletedTasks ?? true,
-          listViewShowAllTasks: parsed.listViewShowAllTasks ?? true,
         });
       }
     } catch (error) {
@@ -77,7 +66,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         viewDensity: state.viewDensity,
         theme: state.theme,
         showCompletedTasks: state.showCompletedTasks,
-        listViewShowAllTasks: state.listViewShowAllTasks,
       });
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, data);
     } catch (error) {

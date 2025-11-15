@@ -14,8 +14,6 @@ export default function SettingsScreen() {
     setViewDensity,
     showCompletedTasks,
     setShowCompletedTasks,
-    listViewShowAllTasks,
-    setListViewShowAllTasks,
   } = useSettingsStore();
 
   const handleDensityChange = (density: ViewDensity) => {
@@ -127,24 +125,6 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={styles.optionRow}>
-              <View style={styles.optionInfo}>
-                <Text style={[styles.optionTitle, { color: colors.text, ...typography.body }]}>
-                  Show All Tasks in Gantt
-                </Text>
-                <Text style={[styles.optionDescription, { color: colors.secondaryText, ...typography.caption1 }]}>
-                  Display tasks without dates in gantt view
-                </Text>
-              </View>
-              <Switch
-                value={listViewShowAllTasks}
-                onValueChange={(value) => handleToggle(value, setListViewShowAllTasks)}
-                trackColor={{ false: colors.separator, true: colors.primary }}
-                thumbColor="#FFFFFF"
-                accessibilityLabel="Show all tasks in gantt toggle"
-                accessibilityRole="switch"
-              />
-            </View>
           </View>
         </View>
 

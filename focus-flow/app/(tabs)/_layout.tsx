@@ -68,12 +68,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="views" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="gantt"
-        options={{
-          href: null, // Hide from tabs, accessible via list view
-        }}
-      />
     </Tabs>
   );
 }
