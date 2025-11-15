@@ -17,8 +17,6 @@ export default function SettingsScreen() {
     setShowCompletedTasks,
     groupTasksByProject,
     setGroupTasksByProject,
-    listViewShowAllTasks,
-    setListViewShowAllTasks,
   } = useSettingsStore();
   const {
     archiveCompletedTasks,
@@ -187,7 +185,7 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={[styles.optionRow, { borderBottomWidth: 0.5, borderBottomColor: colors.separator }]}>
+            <View style={styles.optionRow}>
               <View style={styles.optionInfo}>
                 <Text style={[styles.optionTitle, { color: colors.text, ...typography.body }]}>
                   Group Tasks by Project
@@ -202,25 +200,6 @@ export default function SettingsScreen() {
                 trackColor={{ false: colors.separator, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 accessibilityLabel="Group tasks by project toggle"
-                accessibilityRole="switch"
-              />
-            </View>
-
-            <View style={styles.optionRow}>
-              <View style={styles.optionInfo}>
-                <Text style={[styles.optionTitle, { color: colors.text, ...typography.body }]}>
-                  Show All Tasks in Gantt
-                </Text>
-                <Text style={[styles.optionDescription, { color: colors.secondaryText, ...typography.caption1 }]}>
-                  Display tasks without dates in gantt view
-                </Text>
-              </View>
-              <Switch
-                value={listViewShowAllTasks}
-                onValueChange={(value) => handleToggle(value, setListViewShowAllTasks)}
-                trackColor={{ false: colors.separator, true: colors.primary }}
-                thumbColor="#FFFFFF"
-                accessibilityLabel="Show all tasks in gantt toggle"
                 accessibilityRole="switch"
               />
             </View>
