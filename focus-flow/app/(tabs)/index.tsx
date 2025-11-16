@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Platform } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Platform, RefreshControl, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { DailyFocusModal } from '../../src/components/DailyFocusModal';
 import { useTheme } from '../../src/theme/useTheme';
+import { haptics } from '../../src/utils/haptics';
 import { Task, Project } from '../../src/types';
 import { formatDate, isToday, differenceInDays } from '../../src/utils/dateUtils';
 
@@ -19,6 +20,15 @@ export default function DashboardScreen() {
   const toggleTaskComplete = useTaskStore((state) => state.toggleTaskComplete);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showDailyFocusModal, setShowDailyFocusModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    haptics.light();
+    // Simulate refresh - in production, this would sync data
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setRefreshing(false);
+  }, []);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -88,16 +98,73 @@ export default function DashboardScreen() {
     };
   }, [tasks, dailyGoal, focusedTaskIds]);
 
-  const renderStatCard = (label: string, value: string | number, color: string, onPress?: () => void) => (
-    <TouchableOpacity
-      style={[styles.statCard, { backgroundColor: colors.secondaryBackground }]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <Text style={[styles.statValue, { color, ...typography.largeTitle }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.secondaryText, ...typography.caption1 }]}>{label}</Text>
-    </TouchableOpacity>
-  );
+  // Smart "Do This Now" task selection
+  const suggestedTask = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+
+    // Get incomplete tasks
+    const incompleteTasks = tasks.filter(t => t.status !== 'completed');
+
+    // Priority 1: Overdue critical/high tasks
+    const overdueImportant = incompleteTasks.filter(t => {
+      if (!t.dueDate) return false;
+      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
+      return dueDate < now && (t.priority === 'critical' || t.priority === 'high');
+    });
+    if (overdueImportant.length > 0) return overdueImportant[0];
+
+    // Priority 2: Due today flagged tasks
+    const dueTodayFlagged = stats.dueTodayTasks.filter(t => t.isFlagged);
+    if (dueTodayFlagged.length > 0) return dueTodayFlagged[0];
+
+    // Priority 3: In-progress tasks
+    const inProgress = incompleteTasks.filter(t => t.status === 'in-progress');
+    if (inProgress.length > 0) return inProgress[0];
+
+    // Priority 4: Due today tasks by priority
+    if (stats.dueTodayTasks.length > 0) {
+      return stats.dueTodayTasks.sort((a, b) => {
+        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      })[0];
+    }
+
+    // Priority 5: High priority tasks
+    const highPriority = incompleteTasks.filter(t => t.priority === 'critical' || t.priority === 'high');
+    if (highPriority.length > 0) return highPriority[0];
+
+    // Default: First incomplete task
+    return incompleteTasks[0] || null;
+  }, [tasks, stats]);
+
+  const renderStatCard = (label: string, value: string | number, color: string, onPress?: () => void) => {
+    const handlePress = () => {
+      if (onPress) {
+        haptics.light();
+        onPress();
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.statCard,
+          {
+            backgroundColor: colors.secondaryBackground,
+            opacity: onPress ? 1 : 0.8,
+          }
+        ]}
+        onPress={handlePress}
+        disabled={!onPress}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.statValue, { color, ...typography.largeTitle }]}>{value}</Text>
+        <Text style={[styles.statLabel, { color: colors.secondaryText, ...typography.caption1 }]}>{label}</Text>
+        {onPress && <Text style={[styles.statChevron, { color: colors.tertiaryText }]}>›</Text>}
+      </TouchableOpacity>
+    );
+  };
 
   const renderTaskRow = (task: Task, showProject = true) => {
     const project = task.projectId ? projects.find((p) => p.id === task.projectId) : null;
@@ -173,7 +240,17 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text, ...typography.largeTitle }]}>
@@ -184,11 +261,47 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
+        {/* Do This Now Hero Section */}
+        {suggestedTask && (
+          <TouchableOpacity
+            style={[styles.heroCard, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              haptics.medium();
+              router.push(`/task/${suggestedTask.id}`);
+            }}
+            activeOpacity={0.9}
+          >
+            <View style={styles.heroHeader}>
+              <Text style={[styles.heroLabel, { ...typography.caption1 }]}>
+                ⚡ DO THIS NOW
+              </Text>
+              <View style={styles.heroBadge}>
+                <Text style={[styles.heroBadgeText, { ...typography.caption2 }]}>
+                  {suggestedTask.priority.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.heroTitle, { ...typography.title1 }]} numberOfLines={2}>
+              {suggestedTask.title}
+            </Text>
+            {suggestedTask.dueDate && (
+              <Text style={[styles.heroSubtitle, { ...typography.body }]}>
+                Due {formatDate(typeof suggestedTask.dueDate === 'string' ? new Date(suggestedTask.dueDate) : suggestedTask.dueDate, 'MMM d, h:mm a')}
+              </Text>
+            )}
+            <View style={styles.heroAction}>
+              <Text style={[styles.heroActionText, { ...typography.body }]}>
+                Tap to start →
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          {renderStatCard('Total Tasks', stats.totalTasks, colors.blue)}
-          {renderStatCard('Completed', stats.completedTasks, colors.green)}
-          {renderStatCard('In Progress', stats.inProgressTasks, colors.orange)}
+          {renderStatCard('Overdue', stats.overdueTasks.length, colors.red, stats.overdueTasks.length > 0 ? () => router.push('/tasks') : undefined)}
+          {renderStatCard('Due Today', stats.dueTodayTasks.length, colors.orange, stats.dueTodayTasks.length > 0 ? () => router.push('/tasks') : undefined)}
+          {renderStatCard('Completed', stats.completedTasks, colors.green, () => router.push('/tasks'))}
         </View>
 
         {/* Daily Focus Section */}
@@ -463,12 +576,63 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
   },
+  heroCard: {
+    marginHorizontal: 0,
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  heroLabel: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  heroBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  heroBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    marginBottom: 8,
+    lineHeight: 30,
+  },
+  heroSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 16,
+  },
+  heroAction: {
+    alignItems: 'flex-end',
+  },
+  heroActionText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    opacity: 0.9,
+  },
   statCard: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '30%',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    position: 'relative',
   },
   statValue: {
     fontWeight: '700',
@@ -476,6 +640,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     textAlign: 'center',
+  },
+  statChevron: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    fontSize: 20,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
