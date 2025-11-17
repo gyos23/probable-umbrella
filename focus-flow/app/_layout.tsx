@@ -85,7 +85,7 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
-            name="settings"
+            name="weekly-review"
             options={{
               headerShown: false,
               presentation: 'card'
