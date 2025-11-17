@@ -48,6 +48,7 @@ export default function ListViewScreen() {
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const visibleColumns = useMemo(() => columns.filter((c) => c.visible && c.id !== 'title'), [columns]);
@@ -154,14 +155,35 @@ export default function ListViewScreen() {
     }
   };
 
-  const toggleTaskSelection = (taskId: string) => {
+  const toggleTaskSelection = (taskId: string, shiftKey: boolean = false) => {
     setSelectedTasks((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(taskId)) {
-        newSet.delete(taskId);
+
+      // Shift+click: range select
+      if (shiftKey && lastSelectedTaskId && lastSelectedTaskId !== taskId) {
+        const allTaskIds = tasks.map(t => t.id);
+        const lastIndex = allTaskIds.indexOf(lastSelectedTaskId);
+        const currentIndex = allTaskIds.indexOf(taskId);
+
+        if (lastIndex !== -1 && currentIndex !== -1) {
+          const start = Math.min(lastIndex, currentIndex);
+          const end = Math.max(lastIndex, currentIndex);
+
+          // Add all tasks in range
+          for (let i = start; i <= end; i++) {
+            newSet.add(allTaskIds[i]);
+          }
+        }
       } else {
-        newSet.add(taskId);
+        // Regular click: toggle single
+        if (newSet.has(taskId)) {
+          newSet.delete(taskId);
+        } else {
+          newSet.add(taskId);
+        }
       }
+
+      setLastSelectedTaskId(taskId);
       return newSet;
     });
   };
@@ -344,7 +366,10 @@ export default function ListViewScreen() {
       >
         <TouchableOpacity
           style={[styles.checkboxColumn, { borderRightColor: colors.separator }]}
-          onPress={() => toggleTaskSelection(task.id)}
+          onPress={(e: any) => {
+            const shiftKey = Platform.OS === 'web' ? (e.nativeEvent?.shiftKey || false) : false;
+            toggleTaskSelection(task.id, shiftKey);
+          }}
         >
           <View style={[styles.checkbox, { borderColor: colors.separator }]}>
             {selectedTasks.has(task.id) && <Text style={styles.checkboxCheck}>✓</Text>}
