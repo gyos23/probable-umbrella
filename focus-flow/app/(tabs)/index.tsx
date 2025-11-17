@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTaskStore } from '../../src/store/taskStore';
 import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { DailyFocusModal } from '../../src/components/DailyFocusModal';
+import { ConfettiCelebration } from '../../src/components/ConfettiCelebration';
 import { useTheme } from '../../src/theme/useTheme';
 import { haptics } from '../../src/utils/haptics';
 import { Task, Project } from '../../src/types';
@@ -24,6 +25,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -119,6 +121,14 @@ export default function DashboardScreen() {
 
     updateStreak();
   }, [dailyFocusStats]);
+
+  // Trigger confetti when daily goal is completed
+  useEffect(() => {
+    if (dailyFocusStats && dailyFocusStats.progressPercent === 100) {
+      setShowCelebration(true);
+      haptics.success();
+    }
+  }, [dailyFocusStats?.progressPercent]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -667,6 +677,11 @@ export default function DashboardScreen() {
       <QuickAddTask
         visible={showQuickAdd}
         onClose={() => setShowQuickAdd(false)}
+      />
+
+      <ConfettiCelebration
+        trigger={showCelebration}
+        onComplete={() => setShowCelebration(false)}
       />
     </SafeAreaView>
   );

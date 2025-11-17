@@ -3,17 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 
 interface EmptyStateProps {
-  icon: string;
+  emoji: string;
   title: string;
-  description: string;
+  message: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon,
+  emoji,
   title,
-  description,
+  message,
   actionLabel,
   onAction,
 }) => {
@@ -21,12 +21,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Text style={styles.emoji}>{emoji}</Text>
       <Text style={[styles.title, { color: colors.text, ...typography.title2 }]}>
         {title}
       </Text>
-      <Text style={[styles.description, { color: colors.secondaryText, ...typography.body }]}>
-        {description}
+      <Text style={[styles.message, { color: colors.secondaryText, ...typography.body }]}>
+        {message}
       </Text>
       {actionLabel && onAction && (
         <TouchableOpacity
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     padding: 40,
     paddingVertical: 80,
   },
-  icon: {
+  emoji: {
     fontSize: 64,
     marginBottom: 16,
   },
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  description: {
+  message: {
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,
