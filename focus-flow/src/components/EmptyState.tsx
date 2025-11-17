@@ -1,93 +1,75 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { haptics } from '../utils/haptics';
 import { useTheme } from '../theme/useTheme';
 
 interface EmptyStateProps {
-  emoji: string;
+  icon: string;
   title: string;
-  message: string;
+  description: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export function EmptyState({ emoji, title, message, actionLabel, onAction }: EmptyStateProps) {
+export const EmptyState: React.FC<EmptyStateProps> = ({
+  icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+}) => {
   const { colors, typography } = useTheme();
 
-  const handleAction = () => {
-    haptics.medium();
-    onAction?.();
-  };
-
   return (
-    <View
-      style={styles.container}
-      accessible={true}
-      accessibilityRole="text"
-      accessibilityLabel={`${title}. ${message}`}
-    >
-      <Text style={styles.emoji} accessible={false} aria-hidden={true}>
-        {emoji}
-      </Text>
-      <Text
-        style={[styles.title, { color: colors.text, ...typography.title2 }]}
-        accessible={false}
-      >
+    <View style={styles.container}>
+      <Text style={styles.icon}>{icon}</Text>
+      <Text style={[styles.title, { color: colors.text, ...typography.title2 }]}>
         {title}
       </Text>
-      <Text
-        style={[styles.message, { color: colors.secondaryText, ...typography.body }]}
-        accessible={false}
-      >
-        {message}
+      <Text style={[styles.description, { color: colors.secondaryText, ...typography.body }]}>
+        {description}
       </Text>
       {actionLabel && onAction && (
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={handleAction}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          activeOpacity={0.7}
+          style={[styles.button, { backgroundColor: colors.primary }]}
+          onPress={onAction}
         >
-          <Text style={[styles.actionButtonText, { ...typography.body }]}>
+          <Text style={[styles.buttonText, { ...typography.body }]}>
             {actionLabel}
           </Text>
         </TouchableOpacity>
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingVertical: 60,
+    padding: 40,
+    paddingVertical: 80,
   },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 24,
+  icon: {
+    fontSize: 64,
+    marginBottom: 16,
   },
   title: {
     fontWeight: '700',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  message: {
+  description: {
     textAlign: 'center',
-    lineHeight: 24,
     marginBottom: 24,
+    lineHeight: 24,
   },
-  actionButton: {
+  button: {
     paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
-    marginTop: 8,
   },
-  actionButtonText: {
+  buttonText: {
     color: '#FFFFFF',
     fontWeight: '600',
   },

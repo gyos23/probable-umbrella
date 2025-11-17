@@ -30,6 +30,15 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, []);
 
+  // Time-based greeting
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return '☀️ Good Morning';
+    if (hour < 17) return '🌤️ Good Afternoon';
+    if (hour < 21) return '🌆 Good Evening';
+    return '🌙 Good Night';
+  }, []);
+
   const stats = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -253,6 +262,9 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
+          <Text style={[styles.headerGreeting, { color: colors.secondaryText, ...typography.body }]}>
+            {greeting}
+          </Text>
           <Text style={[styles.headerTitle, { color: colors.text, ...typography.largeTitle }]}>
             Command Center
           </Text>
@@ -562,6 +574,10 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+  },
+  headerGreeting: {
+    marginBottom: 4,
+    opacity: 0.9,
   },
   headerTitle: {
     fontWeight: '700',
