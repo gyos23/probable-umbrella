@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTaskStore } from '../../src/store/taskStore';
 import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { DailyFocusModal } from '../../src/components/DailyFocusModal';
-import { ConfettiCelebration } from '../../src/components/ConfettiCelebration';
+import { CelebrationConfetti } from '../../src/components/CelebrationConfetti';
 import { useTheme } from '../../src/theme/useTheme';
 import { haptics } from '../../src/utils/haptics';
 import { Task, Project } from '../../src/types';
@@ -126,7 +126,6 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (dailyFocusStats && dailyFocusStats.progressPercent === 100) {
       setShowCelebration(true);
-      haptics.success();
     }
   }, [dailyFocusStats?.progressPercent]);
 
@@ -679,9 +678,9 @@ export default function DashboardScreen() {
         onClose={() => setShowQuickAdd(false)}
       />
 
-      <ConfettiCelebration
+      <CelebrationConfetti
         trigger={showCelebration}
-        onComplete={() => setShowCelebration(false)}
+        onAnimationEnd={() => setShowCelebration(false)}
       />
     </SafeAreaView>
   );
