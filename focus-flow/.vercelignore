@@ -1,0 +1,13 @@
+# Build cache directories
+.expo
+node_modules/.cache
+.next
+dist/.expo
+web-build
+
+# Local env files
+.env*.local
+
+# OS files
+.DS_Store
+Thumbs.db

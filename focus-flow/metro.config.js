@@ -5,7 +5,8 @@ const config = getDefaultConfig(__dirname);
 // Ensure proper module resolution
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs', 'cjs'];
 
-// Disable minification to prevent variable hoisting issues
+// Completely disable minification to prevent hoisting errors
+// This is required for complex React components with multiple useMemo/useEffect hooks
 config.transformer = {
   ...config.transformer,
   minifierPath: require.resolve('metro-minify-terser'),
@@ -14,25 +15,11 @@ config.transformer = {
     ecma: 8,
     keep_classnames: true,
     keep_fnames: true,
-    compress: {
-      ...config.transformer.minifierConfig?.compress,
-      drop_console: false,
-      pure_getters: false,
-      keep_fargs: true,
-      keep_fnames: true,
-      keep_classnames: true,
-      // Prevent variable mangling that causes hoisting issues
-      sequences: false,
-      join_vars: false,
-      collapse_vars: false,
-    },
-    mangle: {
-      keep_classnames: true,
-      keep_fnames: true,
-    },
+    compress: false, // Disable all compression
+    mangle: false,   // Disable all mangling
     output: {
       comments: false,
-      beautify: false,
+      beautify: true,  // Keep code readable
     },
   },
 };
