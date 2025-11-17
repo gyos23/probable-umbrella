@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Platform, RefreshControl, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTaskStore } from '../../src/store/taskStore';
 import { QuickAddTask } from '../../src/components/QuickAddTask';
 import { DailyFocusModal } from '../../src/components/DailyFocusModal';
@@ -21,6 +22,8 @@ export default function DashboardScreen() {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showDailyFocusModal, setShowDailyFocusModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -29,6 +32,93 @@ export default function DashboardScreen() {
     await new Promise(resolve => setTimeout(resolve, 800));
     setRefreshing(false);
   }, []);
+
+  // Time-based greeting
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return '☀️ Good Morning';
+    if (hour < 17) return '🌤️ Good Afternoon';
+    if (hour < 21) return '🌆 Good Evening';
+    return '🌙 Good Night';
+  }, []);
+
+  // Streak tracking
+  useEffect(() => {
+    const loadStreak = async () => {
+      try {
+        const streakData = await AsyncStorage.getItem('@FocusFlow:streak');
+        if (streakData) {
+          const { current, best, lastDate } = JSON.parse(streakData);
+          const today = new Date().toDateString();
+
+          // Check if streak should continue
+          const last = new Date(lastDate);
+          const diffDays = Math.floor((new Date().getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (diffDays <= 1) {
+            setStreak(current);
+            setBestStreak(best);
+          } else if (diffDays > 1) {
+            // Streak broken
+            setStreak(0);
+            setBestStreak(best);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load streak:', error);
+      }
+    };
+
+    loadStreak();
+  }, []);
+
+  // Update streak when daily goal is met
+  useEffect(() => {
+    const updateStreak = async () => {
+      if (dailyFocusStats && dailyFocusStats.progressPercent === 100) {
+        try {
+          const today = new Date().toDateString();
+          const streakData = await AsyncStorage.getItem('@FocusFlow:streak');
+
+          let newStreak = 1;
+          let newBest = 1;
+          let lastDate = today;
+
+          if (streakData) {
+            const { current, best, lastDate: last } = JSON.parse(streakData);
+            lastDate = last;
+
+            if (last !== today) {
+              newStreak = current + 1;
+              newBest = Math.max(newStreak, best);
+              lastDate = today;
+
+              await AsyncStorage.setItem('@FocusFlow:streak', JSON.stringify({
+                current: newStreak,
+                best: newBest,
+                lastDate,
+              }));
+
+              setStreak(newStreak);
+              setBestStreak(newBest);
+            }
+          } else {
+            await AsyncStorage.setItem('@FocusFlow:streak', JSON.stringify({
+              current: 1,
+              best: 1,
+              lastDate: today,
+            }));
+            setStreak(1);
+            setBestStreak(1);
+          }
+        } catch (error) {
+          console.error('Failed to update streak:', error);
+        }
+      }
+    };
+
+    updateStreak();
+  }, [dailyFocusStats]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -253,6 +343,9 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
+          <Text style={[styles.headerGreeting, { color: colors.secondaryText, ...typography.body }]}>
+            {greeting}
+          </Text>
           <Text style={[styles.headerTitle, { color: colors.text, ...typography.largeTitle }]}>
             Command Center
           </Text>
@@ -303,6 +396,32 @@ export default function DashboardScreen() {
           {renderStatCard('Due Today', stats.dueTodayTasks.length, colors.orange, stats.dueTodayTasks.length > 0 ? () => router.push('/tasks') : undefined)}
           {renderStatCard('Completed', stats.completedTasks, colors.green, () => router.push('/tasks'))}
         </View>
+
+        {/* Streak Counter */}
+        {streak > 0 && (
+          <View style={[styles.streakCard, { backgroundColor: colors.secondaryBackground }]}>
+            <View style={styles.streakContent}>
+              <View style={styles.streakMain}>
+                <Text style={styles.streakEmoji}>🔥</Text>
+                <View>
+                  <Text style={[styles.streakNumber, { color: colors.orange, ...typography.title1 }]}>
+                    {streak} {streak === 1 ? 'Day' : 'Days'}
+                  </Text>
+                  <Text style={[styles.streakLabel, { color: colors.secondaryText, ...typography.caption1 }]}>
+                    Current Streak
+                  </Text>
+                </View>
+              </View>
+              {bestStreak > streak && (
+                <View style={styles.streakBest}>
+                  <Text style={[styles.streakBestNumber, { color: colors.tertiaryText, ...typography.caption1 }]}>
+                    Best: {bestStreak}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Daily Focus Section */}
         {dailyFocusStats && (
@@ -563,6 +682,10 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
   },
+  headerGreeting: {
+    marginBottom: 4,
+    opacity: 0.9,
+  },
   headerTitle: {
     fontWeight: '700',
     marginBottom: 4,
@@ -646,6 +769,32 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     fontSize: 20,
+    fontWeight: '600',
+  },
+  streakCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  streakContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  streakMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  streakEmoji: {
+    fontSize: 40,
+  },
+  streakNumber: {
+    fontWeight: '700',
+  },
+  streakLabel: {},
+  streakBest: {},
+  streakBestNumber: {
     fontWeight: '600',
   },
   section: {
