@@ -44,6 +44,75 @@ export default function DashboardScreen() {
     return '🌙 Good Night';
   }, []);
 
+  // Calculate stats BEFORE useEffects that depend on them
+  const stats = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((t) => t.status === 'completed').length;
+    const inProgressTasks = tasks.filter((t) => t.status === 'in-progress').length;
+
+    const overdueTasks = tasks.filter((t) => {
+      if (!t.dueDate || t.status === 'completed') return false;
+      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
+      return dueDate < today;
+    });
+
+    const dueTodayTasks = tasks.filter((t) => {
+      if (!t.dueDate || t.status === 'completed') return false;
+      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
+      return isToday(dueDate);
+    });
+
+    const upcomingTasks = tasks.filter((t) => {
+      if (!t.dueDate || t.status === 'completed') return false;
+      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
+      const diff = differenceInDays(dueDate, today);
+      return diff > 0 && diff <= 7;
+    }).sort((a, b) => {
+      const dateA = typeof a.dueDate === 'string' ? new Date(a.dueDate) : a.dueDate!;
+      const dateB = typeof b.dueDate === 'string' ? new Date(b.dueDate) : b.dueDate!;
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    const activeProjects = projects.filter(
+      (p) => p.status === 'in-progress' || p.status === 'todo'
+    );
+
+    const flaggedTasks = tasks.filter(
+      (t) => t.isFlagged && t.status !== 'completed'
+    );
+
+    return {
+      totalTasks,
+      completedTasks,
+      inProgressTasks,
+      overdueTasks,
+      dueTodayTasks,
+      upcomingTasks,
+      activeProjects,
+      flaggedTasks,
+      completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+    };
+  }, [tasks, projects]);
+
+  const dailyFocusStats = useMemo(() => {
+    if (dailyGoal === 0 || focusedTaskIds.length === 0) {
+      return null;
+    }
+
+    const focusedTasks = tasks.filter((t) => focusedTaskIds.includes(t.id));
+    const completedCount = focusedTasks.filter((t) => t.status === 'completed').length;
+    const progressPercent = Math.round((completedCount / dailyGoal) * 100);
+
+    return {
+      focusedTasks,
+      completedCount,
+      progressPercent,
+    };
+  }, [tasks, dailyGoal, focusedTaskIds]);
+
   // Streak tracking
   useEffect(() => {
     const loadStreak = async () => {
@@ -128,74 +197,6 @@ export default function DashboardScreen() {
       setShowCelebration(true);
     }
   }, [dailyFocusStats?.progressPercent]);
-
-  const stats = useMemo(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => t.status === 'completed').length;
-    const inProgressTasks = tasks.filter((t) => t.status === 'in-progress').length;
-
-    const overdueTasks = tasks.filter((t) => {
-      if (!t.dueDate || t.status === 'completed') return false;
-      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
-      return dueDate < today;
-    });
-
-    const dueTodayTasks = tasks.filter((t) => {
-      if (!t.dueDate || t.status === 'completed') return false;
-      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
-      return isToday(dueDate);
-    });
-
-    const upcomingTasks = tasks.filter((t) => {
-      if (!t.dueDate || t.status === 'completed') return false;
-      const dueDate = typeof t.dueDate === 'string' ? new Date(t.dueDate) : t.dueDate;
-      const diff = differenceInDays(dueDate, today);
-      return diff > 0 && diff <= 7;
-    }).sort((a, b) => {
-      const dateA = typeof a.dueDate === 'string' ? new Date(a.dueDate) : a.dueDate!;
-      const dateB = typeof b.dueDate === 'string' ? new Date(b.dueDate) : b.dueDate!;
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    const activeProjects = projects.filter(
-      (p) => p.status === 'in-progress' || p.status === 'todo'
-    );
-
-    const flaggedTasks = tasks.filter(
-      (t) => t.isFlagged && t.status !== 'completed'
-    );
-
-    return {
-      totalTasks,
-      completedTasks,
-      inProgressTasks,
-      overdueTasks,
-      dueTodayTasks,
-      upcomingTasks,
-      activeProjects,
-      flaggedTasks,
-      completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
-    };
-  }, [tasks, projects]);
-
-  const dailyFocusStats = useMemo(() => {
-    if (dailyGoal === 0 || focusedTaskIds.length === 0) {
-      return null;
-    }
-
-    const focusedTasks = tasks.filter((t) => focusedTaskIds.includes(t.id));
-    const completedCount = focusedTasks.filter((t) => t.status === 'completed').length;
-    const progressPercent = Math.round((completedCount / dailyGoal) * 100);
-
-    return {
-      focusedTasks,
-      completedCount,
-      progressPercent,
-    };
-  }, [tasks, dailyGoal, focusedTaskIds]);
 
   // Smart "Do This Now" task selection
   const suggestedTask = useMemo(() => {
