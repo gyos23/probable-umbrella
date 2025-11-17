@@ -643,7 +643,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.quickActionButton, { backgroundColor: colors.purple }]}
-              onPress={() => router.push('/settings')}
+              onPress={() => router.push('/(tabs)/settings')}
             >
               <Text style={[styles.quickActionText, { ...typography.headline }]}>⚙️</Text>
               <Text style={[styles.quickActionLabel, { ...typography.caption1 }]}>Settings</Text>
