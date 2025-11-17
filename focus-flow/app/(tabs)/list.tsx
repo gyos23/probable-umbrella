@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Platform, Alert, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
@@ -364,17 +364,25 @@ export default function ListViewScreen() {
           },
         ]}
       >
-        <TouchableOpacity
+        <Pressable
           style={[styles.checkboxColumn, { borderRightColor: colors.separator }]}
           onPress={(e: any) => {
-            const shiftKey = Platform.OS === 'web' ? (e.nativeEvent?.shiftKey || false) : false;
+            // On web, Pressable passes the native DOM event which has shiftKey
+            let shiftKey = false;
+            if (Platform.OS === 'web') {
+              // Access the DOM event directly
+              const nativeEvent = e?.nativeEvent;
+              if (nativeEvent instanceof MouseEvent) {
+                shiftKey = nativeEvent.shiftKey;
+              }
+            }
             toggleTaskSelection(task.id, shiftKey);
           }}
         >
           <View style={[styles.checkbox, { borderColor: colors.separator }]}>
             {selectedTasks.has(task.id) && <Text style={styles.checkboxCheck}>✓</Text>}
           </View>
-        </TouchableOpacity>
+        </Pressable>
         <TouchableOpacity
           style={[styles.taskTitleCell, { width: 250, borderRightColor: colors.separator }]}
           onPress={() => {
@@ -607,8 +615,15 @@ export default function ListViewScreen() {
         </View>
       )}
 
-      <ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'}>
+      <ScrollView
+        style={styles.outerScrollView}
+        contentContainerStyle={styles.outerScrollContent}
+      >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={Platform.OS === 'web'}
+          contentContainerStyle={styles.horizontalScrollContent}
+        >
           <View style={styles.tableContainer}>
             {renderHeader()}
             {projectsWithTasks.map((item, index) => renderProjectGroup(item, index))}
@@ -891,8 +906,18 @@ const styles = StyleSheet.create({
   columnToggleText: {
     fontWeight: '500',
   },
+  outerScrollView: {
+    flex: 1,
+  },
+  outerScrollContent: {
+    flexGrow: 1,
+  },
+  horizontalScrollContent: {
+    flexGrow: 1,
+  },
   tableContainer: {
     minWidth: '100%',
+    flex: 1,
   },
   headerRow: {
     flexDirection: 'row',
