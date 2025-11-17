@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTaskStore } from '../../src/store/taskStore';
 import { TaskRow } from '../../src/components/TaskRow';
+import { SwipeableTaskRow } from '../../src/components/SwipeableTaskRow';
+import { EmptyState } from '../../src/components/EmptyState';
 import { useTheme } from '../../src/theme/useTheme';
 import { haptics } from '../../src/utils/haptics';
 import { isSameDay, isToday, addDays } from '../../src/utils/dateUtils';
@@ -130,16 +132,13 @@ export default function ForecastScreen() {
       </View>
 
       {forecastData.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={{ fontSize: 64, marginBottom: 16 }}>🎉</Text>
-          <Text style={[styles.emptyTitle, { color: colors.text, ...typography.title2 }]}>
-            All Caught Up!
-          </Text>
-          <Text style={[styles.emptyText, { color: colors.secondaryText, ...typography.body }]}>
-            You have no active tasks with due dates.{'\n'}
-            Time to plan your next move!
-          </Text>
-        </View>
+        <EmptyState
+          emoji="🎉"
+          title="All Caught Up!"
+          message="You have no active tasks with due dates. Time to plan your next move!"
+          actionLabel="View All Tasks"
+          onAction={() => router.push('/tasks')}
+        />
       ) : (
         <SectionList
           sections={forecastData}
@@ -152,15 +151,20 @@ export default function ForecastScreen() {
             />
           }
           renderItem={({ item }) => (
-            <TaskRow
-              task={item}
-              onPress={() => router.push(`/task/${item.id}`)}
-              onToggleComplete={() => toggleTaskComplete(item.id)}
-              onToggleFlag={() => toggleTaskFlag(item.id)}
-              onDelete={() => deleteTask(item.id)}
-              onChangeStatus={(status) => updateTask(item.id, { status })}
-              onChangePriority={(priority) => updateTask(item.id, { priority })}
-            />
+            <SwipeableTaskRow
+              onComplete={() => toggleTaskComplete(item.id)}
+              onDefer={() => updateTask(item.id, { status: 'deferred' })}
+            >
+              <TaskRow
+                task={item}
+                onPress={() => router.push(`/task/${item.id}`)}
+                onToggleComplete={() => toggleTaskComplete(item.id)}
+                onToggleFlag={() => toggleTaskFlag(item.id)}
+                onDelete={() => deleteTask(item.id)}
+                onChangeStatus={(status) => updateTask(item.id, { status })}
+                onChangePriority={(priority) => updateTask(item.id, { priority })}
+              />
+            </SwipeableTaskRow>
           )}
           renderSectionHeader={({ section: { title, emoji, color, data } }) => (
             <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>

@@ -18,6 +18,7 @@ import { haptics } from '../../src/utils/haptics';
 import { useTaskStore } from '../../src/store/taskStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { TaskRow } from '../../src/components/TaskRow';
+import { SwipeableTaskRow } from '../../src/components/SwipeableTaskRow';
 import { Button } from '../../src/components/Button';
 import { EmptyState } from '../../src/components/EmptyState';
 import { CelebrationConfetti } from '../../src/components/CelebrationConfetti';
@@ -430,17 +431,22 @@ export default function TasksScreen() {
                   </Text>
                 </View>
                 {group.tasks.map((task) => (
-                  <TaskRow
+                  <SwipeableTaskRow
                     key={task.id}
-                    task={task}
-                    onPress={() => router.push(`/task/${task.id}`)}
-                    onToggleComplete={() => toggleTaskComplete(task.id)}
-                    onToggleFlag={() => toggleTaskFlag(task.id)}
-                    onDelete={() => deleteTask(task.id)}
-                    onChangeStatus={(status) => updateTask(task.id, { status })}
-                    onChangePriority={(priority) => updateTask(task.id, { priority })}
-                    density={viewDensity}
-                  />
+                    onComplete={() => toggleTaskComplete(task.id)}
+                    onDefer={() => updateTask(task.id, { status: 'deferred' })}
+                  >
+                    <TaskRow
+                      task={task}
+                      onPress={() => router.push(`/task/${task.id}`)}
+                      onToggleComplete={() => toggleTaskComplete(task.id)}
+                      onToggleFlag={() => toggleTaskFlag(task.id)}
+                      onDelete={() => deleteTask(task.id)}
+                      onChangeStatus={(status) => updateTask(task.id, { status })}
+                      onChangePriority={(priority) => updateTask(task.id, { priority })}
+                      density={viewDensity}
+                    />
+                  </SwipeableTaskRow>
                 ))}
               </View>
             ))
@@ -486,16 +492,21 @@ export default function TasksScreen() {
             ) : null
           }
           renderItem={({ item }) => (
-            <TaskRow
-              task={item}
-              onPress={() => router.push(`/task/${item.id}`)}
-              onToggleComplete={() => toggleTaskComplete(item.id)}
-              onToggleFlag={() => toggleTaskFlag(item.id)}
-              onDelete={() => deleteTask(item.id)}
-              onChangeStatus={(status) => updateTask(item.id, { status })}
-              onChangePriority={(priority) => updateTask(item.id, { priority })}
-              density={viewDensity}
-            />
+            <SwipeableTaskRow
+              onComplete={() => toggleTaskComplete(item.id)}
+              onDefer={() => updateTask(item.id, { status: 'deferred' })}
+            >
+              <TaskRow
+                task={item}
+                onPress={() => router.push(`/task/${item.id}`)}
+                onToggleComplete={() => toggleTaskComplete(item.id)}
+                onToggleFlag={() => toggleTaskFlag(item.id)}
+                onDelete={() => deleteTask(item.id)}
+                onChangeStatus={(status) => updateTask(item.id, { status })}
+                onChangePriority={(priority) => updateTask(item.id, { priority })}
+                density={viewDensity}
+              />
+            </SwipeableTaskRow>
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
