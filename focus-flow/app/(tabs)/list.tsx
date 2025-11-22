@@ -49,6 +49,9 @@ export default function ListViewScreen() {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState<number>(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState<number>(0);
   const inputRef = useRef<TextInput>(null);
 
   const visibleColumns = useMemo(() => columns.filter((c) => c.visible && c.id !== 'title'), [columns]);
@@ -88,6 +91,56 @@ export default function ListViewScreen() {
       )
     );
   };
+
+  const startColumnResize = (columnId: string, startX: number) => {
+    const column = columns.find((c) => c.id === columnId);
+    if (column) {
+      setResizingColumn(columnId);
+      setResizeStartX(startX);
+      setResizeStartWidth(column.width);
+    }
+  };
+
+  const handleColumnResize = (currentX: number) => {
+    if (resizingColumn) {
+      const delta = currentX - resizeStartX;
+      const newWidth = Math.max(80, resizeStartWidth + delta); // Min width of 80
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.id === resizingColumn ? { ...col, width: newWidth } : col
+        )
+      );
+    }
+  };
+
+  const stopColumnResize = () => {
+    setResizingColumn(null);
+  };
+
+  // Add event listeners for column resizing on web
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleMouseMove = (e: MouseEvent) => {
+        if (resizingColumn) {
+          handleColumnResize(e.clientX);
+        }
+      };
+
+      const handleMouseUp = () => {
+        if (resizingColumn) {
+          stopColumnResize();
+        }
+      };
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
 
   const startEditing = (taskId: string, columnId: string, currentValue: string, task?: Task) => {
     // Allow editing: title, progress, status, priority, dueDate, dependencies
@@ -336,14 +389,28 @@ export default function ListViewScreen() {
       <View style={[styles.projectColumn, { width: 250, borderRightColor: colors.separator }]}>
         <Text style={[styles.headerText, { color: colors.text, ...typography.headline }]}>Project / Task</Text>
       </View>
-      {visibleColumns.map((column) => (
+      {visibleColumns.map((column, index) => (
         <View
           key={column.id}
-          style={[styles.column, { width: column.width, borderRightColor: colors.separator }]}
+          style={[styles.columnHeader, { width: column.width, borderRightColor: colors.separator }]}
         >
           <Text style={[styles.headerText, { color: colors.text, ...typography.headline }]} numberOfLines={1}>
             {column.label}
           </Text>
+          {Platform.OS === 'web' && (
+            <View
+              style={styles.resizeHandle}
+              onStartShouldSetResponder={() => true}
+              onResponderGrant={(e: any) => {
+                const nativeEvent = e.nativeEvent;
+                if (nativeEvent && nativeEvent.clientX) {
+                  startColumnResize(column.id, nativeEvent.clientX);
+                }
+              }}
+            >
+              <View style={[styles.resizeHandleBar, { backgroundColor: colors.separator }]} />
+            </View>
+          )}
         </View>
       ))}
     </View>
@@ -351,6 +418,7 @@ export default function ListViewScreen() {
 
   const renderTaskRow = (task: Task, isLast: boolean) => {
     const isEditingTitle = editingCell?.taskId === task.id && editingCell?.columnId === 'title';
+    const isSelected = selectedTasks.has(task.id);
 
     return (
       <View
@@ -358,9 +426,11 @@ export default function ListViewScreen() {
         style={[
           styles.taskRow,
           {
-            backgroundColor: selectedTasks.has(task.id) ? colors.tertiaryBackground : colors.background,
+            backgroundColor: isSelected ? colors.tertiaryBackground : colors.background,
             borderBottomColor: colors.separator,
             borderBottomWidth: isLast ? 0 : 0.5,
+            borderLeftWidth: isSelected ? 3 : 0,
+            borderLeftColor: isSelected ? colors.primary : 'transparent',
           },
         ]}
       >
@@ -467,7 +537,7 @@ export default function ListViewScreen() {
                   />
                 )
               ) : (
-                <Text style={[styles.cellText, { color: textColor, ...typography.caption1 }]} numberOfLines={1}>
+                <Text style={[styles.cellText, { color: textColor, ...typography.caption1 }]}>
                   {value}
                 </Text>
               )}
@@ -968,14 +1038,39 @@ const styles = StyleSheet.create({
   },
   column: {
     paddingHorizontal: 12,
+    paddingVertical: 8,
     justifyContent: 'center',
     borderRightWidth: 1,
+    flexWrap: 'wrap',
+  },
+  columnHeader: {
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    borderRightWidth: 1,
+    position: 'relative',
+  },
+  resizeHandle: {
+    position: 'absolute',
+    right: -4,
+    top: 0,
+    bottom: 0,
+    width: 8,
+    cursor: 'col-resize',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  resizeHandleBar: {
+    width: 2,
+    height: '100%',
+    opacity: 0,
   },
   headerText: {
     fontWeight: '700',
   },
   cellText: {
     fontWeight: '500',
+    flexWrap: 'wrap',
   },
   editInput: {
     flex: 1,
