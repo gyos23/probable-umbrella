@@ -398,18 +398,40 @@ export default function ListViewScreen() {
             {column.label}
           </Text>
           {Platform.OS === 'web' && (
-            <View
-              style={styles.resizeHandle}
-              onStartShouldSetResponder={() => true}
-              onResponderGrant={(e: any) => {
-                const nativeEvent = e.nativeEvent;
-                if (nativeEvent && nativeEvent.clientX) {
-                  startColumnResize(column.id, nativeEvent.clientX);
-                }
+            <div
+              style={{
+                position: 'absolute',
+                right: -4,
+                top: 0,
+                bottom: 0,
+                width: 8,
+                cursor: 'col-resize',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10,
+              }}
+              onMouseDown={(e: any) => {
+                e.preventDefault();
+                startColumnResize(column.id, e.clientX);
               }}
             >
-              <View style={[styles.resizeHandleBar, { backgroundColor: colors.separator }]} />
-            </View>
+              <div
+                style={{
+                  width: 2,
+                  height: '100%',
+                  backgroundColor: colors.separator,
+                  opacity: 0.3,
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={(e: any) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+                onMouseLeave={(e: any) => {
+                  e.currentTarget.style.opacity = '0.3';
+                }}
+              />
+            </div>
           )}
         </View>
       ))}
@@ -429,8 +451,11 @@ export default function ListViewScreen() {
             backgroundColor: isSelected ? colors.tertiaryBackground : colors.background,
             borderBottomColor: colors.separator,
             borderBottomWidth: isLast ? 0 : 0.5,
-            borderLeftWidth: isSelected ? 3 : 0,
+            borderLeftWidth: isSelected ? 4 : 0,
             borderLeftColor: isSelected ? colors.primary : 'transparent',
+            ...(Platform.OS === 'web' && isSelected ? {
+              boxShadow: `inset 4px 0 0 ${colors.primary}`,
+            } : {}),
           },
         ]}
       >
@@ -449,8 +474,14 @@ export default function ListViewScreen() {
             toggleTaskSelection(task.id, shiftKey);
           }}
         >
-          <View style={[styles.checkbox, { borderColor: colors.separator }]}>
-            {selectedTasks.has(task.id) && <Text style={styles.checkboxCheck}>✓</Text>}
+          <View style={[
+            styles.checkbox,
+            {
+              borderColor: isSelected ? colors.primary : colors.separator,
+              backgroundColor: isSelected ? colors.primary : 'transparent',
+            }
+          ]}>
+            {isSelected && <Text style={styles.checkboxCheck}>✓</Text>}
           </View>
         </Pressable>
         <TouchableOpacity
@@ -1049,22 +1080,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     position: 'relative',
   },
-  resizeHandle: {
-    position: 'absolute',
-    right: -4,
-    top: 0,
-    bottom: 0,
-    width: 8,
-    cursor: 'col-resize',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  resizeHandleBar: {
-    width: 2,
-    height: '100%',
-    opacity: 0,
-  },
   headerText: {
     fontWeight: '700',
   },
@@ -1156,7 +1171,7 @@ const styles = StyleSheet.create({
   checkboxCheck: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#FFFFFF',
   },
   bulkActionsBar: {
     flexDirection: 'row',
